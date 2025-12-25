@@ -1,0 +1,79 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "import/order": [
+      "error",
+      {
+        "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        },
+        "pathGroups": [
+          {
+            "pattern": "@app/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@pages/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@widgets/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@features/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@entities/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@shared/**",
+            "group": "internal",
+            "position": "before"
+          }
+        ],
+        "pathGroupsExcludedImportTypes": ["builtin"]
+      }
+    ],
+    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "varsIgnorePattern": "^_",
+        "args": "after-used",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["../*", "../../*", "../../../*", "../../../../*"],
+            "message": "상대 경로 대신 FSD 경로 별칭(@shared, @features 등)을 사용하세요."
+          }
+        ]
+      }
+    ]
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./tsconfig.json"
+      }
+    }
+  }
+}
+

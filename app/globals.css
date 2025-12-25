@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* 포스트잇 커스텀 스크롤바 */
+.note-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.note-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.note-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.note-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Firefox 스크롤바 */
+.note-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* 보드 설정 모달 라디오 버튼 - 선택된 상태에서 테두리 제거 */
+input[type="radio"]:checked {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}

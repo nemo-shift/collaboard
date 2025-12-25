@@ -1,0 +1,278 @@
+# Vibe Board 프로젝트 규칙
+
+## 프로젝트 개요
+
+- **서비스 이름**: 바이브 보드 (Vibe Board)
+- **한 줄 소개**: 아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드
+- **주요 기술 스택**: Next.js 16 (App Router), Supabase (Auth, PostgreSQL DB, Realtime, Storage), TypeScript, TailwindCSS
+
+## 아키텍처: Feature-Sliced Design (FSD)
+
+이 프로젝트는 Feature-Sliced Design 아키텍처를 엄격히 따릅니다.
+
+### 레이어 구조 및 의존성 규칙
+
+```
+app → pages → widgets → features → entities → shared
+```
+
+**핵심 원칙**: 상위 레이어만 하위 레이어를 import할 수 있습니다.
+
+- ✅ `pages`에서 `widgets`, `features`, `entities`, `shared` import 가능
+- ✅ `widgets`에서 `features`, `entities`, `shared` import 가능
+- ❌ `shared`에서 `pages` import 불가능 (위반!)
+
+### 폴더 구조
+
+```
+src/
+├── app/          # App Layer (프로바이더)
+├── pages/        # Pages Layer (페이지 컴포넌트)
+├── widgets/      # Widgets Layer (복합 UI 블록)
+├── features/     # Features Layer (비즈니스 기능)
+├── entities/     # Entities Layer (비즈니스 엔티티)
+└── shared/       # Shared Layer (공유 리소스)
+```
+
+## Index.ts 패턴 (Barrel Exports)
+
+### 모든 폴더에 index.ts 생성
+
+각 폴더마다 `index.ts` 파일을 생성하여 모듈의 공개 API를 관리합니다.
+
+### 계층별 Re-export 패턴
+
+**세그먼트별 index.ts 예시:**
+```typescript
+// src/features/auth/ui/index.ts
+export { LoginForm } from './components/login-form';
+export { SignupForm } from './components/signup-form';
+```
+
+**Feature 전체 index.ts:**
+```typescript
+// src/features/auth/index.ts
+export * from './ui';
+export * from './api';
+export * from './model';
+export * from './lib';
+```
+
+**레이어 전체 index.ts:**
+```typescript
+// src/features/index.ts
+export * from './auth';
+export * from './board';
+export * from './content';
+export * from './collaboration';
+```
+
+### 주석 처리 방식
+
+아직 내용이 없으면 주석으로 표시합니다:
+
+```typescript
+// src/features/auth/index.ts
+// export * from './ui';      // 아직 없음 (주석 처리)
+export * from './api';        // 활성화됨
+// export * from './model';   // 아직 없음 (주석 처리)
+```
+
+**규칙**: 빈 파일이 아니라 주석으로 명확히 표시합니다.
+
+## Import 규칙
+
+### 경로 별칭 사용 (필수)
+
+FSD 경로 별칭을 반드시 사용합니다:
+
+```typescript
+// ✅ 좋은 예
+import { supabase } from '@shared/api';
+import { Header } from '@widgets/header';
+import { LoginForm } from '@features/auth';
+import { User } from '@entities/user';
+
+// ❌ 나쁜 예 (상대 경로 사용 금지)
+import { supabase } from '../../../shared/api/supabase/client';
+```
+
+### 사용 가능한 경로 별칭
+
+- `@app/*` → `./src/app/*`
+- `@pages/*` → `./src/pages/*`
+- `@widgets/*` → `./src/widgets/*`
+- `@features/*` → `./src/features/*`
+- `@entities/*` → `./src/entities/*`
+- `@shared/*` → `./src/shared/*`
+
+## 레이어별 가이드라인
+
+### 📁 shared (공유 레이어)
+- 자주 사용되므로 index.ts 활용 권장
+- 예: `@shared/api`, `@shared/ui`, `@shared/types`
+
+### 📦 entities (엔티티 레이어)
+- 모델/타입을 export할 때만 사용
+- 예: `@entities/user`, `@entities/board`, `@entities/element`
+
+### ⚡ features (기능 레이어)
+- UI 컴포넌트나 훅을 export할 때만 사용
+- 예: `@features/auth`, `@features/board`, `@features/content`, `@features/collaboration`
+
+### 🧩 widgets (위젯 레이어)
+- 위젯 컴포넌트를 export할 때만 사용
+- 예: `@widgets/header`, `@widgets/sidebar`, `@widgets/board-canvas`
+
+### 📄 pages (페이지 레이어)
+- 페이지 컴포넌트를 export할 때만 사용
+- 예: `@pages/landing`, `@pages/dashboard`, `@pages/board`
+
+## Feature별 구조
+
+각 feature는 다음 세그먼트를 가질 수 있습니다:
+
+```
+feature-name/
+├── ui/          # UI 컴포넌트
+├── model/       # 비즈니스 로직, 상태 관리 (훅 등)
+├── api/         # API 호출 함수
+├── lib/         # 유틸리티 함수
+└── index.ts     # Public API (계층별 re-export)
+```
+
+### Feature별 책임
+
+**auth**: 인증 관련 (로그인/로그아웃, Google OAuth)
+**board**: 보드 관리 (생성/삭제/수정, 목록 조회)
+**content**: 콘텐츠 생성 (포스트잇, 이미지 업로드, 드래그 앤 드롭)
+**collaboration**: 실시간 협업 (Supabase Realtime 구독, 동기화)
+
+## Entity별 구조
+
+각 entity는 다음 세그먼트를 가질 수 있습니다:
+
+```
+entity-name/
+├── model/       # 타입, 인터페이스 정의
+├── lib/         # 유틸리티 함수
+└── index.ts     # Public API
+```
+
+### Entity별 책임
+
+**user**: 사용자 타입 및 유틸리티
+**board**: 보드 타입 및 유틸리티
+**element**: 보드 요소 타입 (포스트잇, 이미지) 및 유틸리티
+
+## Supabase 사용 규칙
+
+### 클라이언트 사용
+
+```typescript
+// 클라이언트 사이드
+import { supabase } from '@shared/api';
+
+// 서버 사이드
+import { createSupabaseServerClient } from '@shared/api';
+const supabase = await createSupabaseServerClient();
+```
+
+### 데이터 모델
+
+**boards 테이블:**
+- `id` (UUID)
+- `name` (TEXT)
+- `owner_id` (UUID, auth.users 참조)
+- `created_at` (TIMESTAMPTZ)
+
+**board_elements 테이블:**
+- `id` (UUID)
+- `board_id` (UUID, boards 참조)
+- `user_id` (UUID, auth.users 참조)
+- `type` (TEXT: 'note' 또는 'image')
+- `content` (TEXT)
+- `position` (JSONB: {x, y})
+- `size` (JSONB: {width, height})
+- `color` (TEXT, nullable)
+- `created_at` (TIMESTAMPTZ)
+
+## 코딩 컨벤션
+
+### TypeScript
+- 엄격한 타입 사용 (`strict: true`)
+- 타입은 entities 레이어에 정의
+- `any` 사용 지양
+
+### React 컴포넌트
+- 함수 컴포넌트 사용
+- Server Components 기본 (App Router)
+- Client Component는 `'use client'` 명시
+
+### 스타일링
+- TailwindCSS 사용
+- 인라인 클래스 사용
+- 공통 스타일은 shared/ui에 컴포넌트로 추출
+
+### 파일 명명 규칙
+- 컴포넌트: PascalCase (예: `LoginForm.tsx`)
+- 유틸리티: kebab-case (예: `format-date.ts`)
+- 훅: camelCase with 'use' prefix (예: `use-auth.ts`)
+
+## 코드 작성 시 체크리스트
+
+새로운 코드를 작성할 때:
+
+- [ ] 올바른 레이어에 배치했는가?
+- [ ] 상위 레이어에서만 import하는가?
+- [ ] 경로 별칭(`@shared`, `@features` 등)을 사용하는가?
+- [ ] 모든 폴더에 `index.ts`를 생성했는가?
+- [ ] 세그먼트별 `index.ts`를 생성했는가?
+- [ ] 상위 `index.ts`에서 하위를 re-export하는가?
+- [ ] 아직 내용이 없으면 주석으로 표시했는가?
+- [ ] FSD 컨벤션 문서(`docs/FSD_CONVENTIONS.md`)를 참고했는가?
+
+## 주요 기능 요구사항
+
+### 사용자 인증
+- Google 계정 소셜 로그인
+- 로그인한 사용자만 보드 생성/수정 가능
+
+### 보드 관리
+- 보드 생성 (고유 URL: `/board/[boardId]`)
+- 대시보드에서 보드 목록 조회
+
+### 실시간 협업
+- Supabase Realtime 활용
+- 모든 사용자에게 즉시 반영
+
+### 콘텐츠 추가
+- 포스트잇: 다양한 색상, 텍스트 입력, 드래그 및 크기 조절
+- 이미지: 업로드, 드래그 및 크기 조절 (Supabase Storage)
+
+## 모듈화 원칙
+
+### 설정값 관리
+- 하드코딩된 값은 `lib/constants.ts`에 상수로 분리
+- 예: `DEFAULT_NOTE_COLOR`, `DEFAULT_NOTE_SIZE`, `MAX_IMAGE_SIZE`
+
+### 데이터 주입
+- 훅은 `initialData` 같은 옵션 props를 받아 외부에서 데이터 주입 가능하게
+- Mock 데이터는 기본값으로만 사용, 실제 데이터로 쉽게 교체 가능해야 함
+
+### 사용자 정보
+- 현재 사용자 정보는 훅 내부에서 하드코딩하지 말고 props로 받기
+- 인증 시스템과 분리하여 테스트 및 재사용 가능하게
+
+### 재사용성
+- 모든 훅과 컴포넌트는 명확한 인터페이스와 반환 타입을 가져야 함
+- 위젯은 props로 동작하며 다른 곳에서도 사용 가능해야 함
+- Features는 비즈니스 로직만 담당, UI는 widgets로 분리
+
+## 참고 문서
+
+- FSD 컨벤션: `docs/FSD_CONVENTIONS.md`
+- FSD 코딩 가이드: `docs/FSD_CODING_GUIDE.md`
+- Supabase 설정: `supabase/README.md`
+- MCP 설정: `docs/MCP_SETUP.md`
+
