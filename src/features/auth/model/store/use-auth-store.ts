@@ -60,9 +60,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const session = await getSession();
       if (session?.user) {
         get().setUser(session.user);
+      } else {
+        // 세션이 없으면 익명 사용자로 설정
+        get().clearAuth();
       }
-    } catch (error) {
-      console.error('Auth initialization error:', error);
+    } catch (error: any) {
+      // Refresh token 에러는 정상적인 상황 (세션 만료)
+      if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh_token')) {
+        get().clearAuth();
+      } else {
+        console.error('Auth initialization error:', error);
+        get().clearAuth();
+      }
     } finally {
       set({ isLoading: false, isInitialized: true });
     }
@@ -85,6 +94,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user: null,
       userProfile: null,
+      isAnonymous: true, // 익명 상태로 초기화
       isInitialized: true,
     });
   },

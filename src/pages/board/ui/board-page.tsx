@@ -6,26 +6,13 @@ import { BoardCanvas } from '@widgets/board-canvas';
 import { BoardToolbar } from '@widgets/board-toolbar';
 import { CollaborationWidget } from '@widgets/collaboration-widget';
 import { SignupRequiredModal, PrivateBoardModal, ToastContainer, type ToastType } from '@shared/ui';
-import { useBoardContent } from '@features/content';
+import { useBoardContent, useEditGuardedHandlers } from '@features/content';
 import { useCollaboration } from '@features/collaboration';
-import { useBoardActions } from '@features/board';
+import { useBoardActions, useBoardRealtimeUpdates } from '@features/board';
 import { useAuth } from '@features/auth';
 import { getBoard, updateBoard } from '@features/board/api';
-import { useRealtimeSubscription, fetchOwnerName } from '@shared/lib';
-import { supabase } from '@shared/api';
+import { generateAnonymousUserId, useTheme } from '@shared/lib';
 import type { Board } from '@entities/board';
-import { mapBoardRowToBoard } from '@entities/board/lib/board-mapper';
-
-// 어나니머스 사용자 ID 생성 함수
-function generateAnonymousUserId(): string {
-  if (typeof window === 'undefined') return '';
-  const stored = localStorage.getItem('anonymous_user_id');
-  if (stored) return stored;
-  // 간단한 UUID 생성 (crypto.randomUUID가 없을 경우 대비)
-  const newId = 'anon_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
-  localStorage.setItem('anonymous_user_id', newId);
-  return newId;
-}
 
 export const BoardPage = () => {
   const params = useParams();
@@ -39,9 +26,6 @@ export const BoardPage = () => {
 
   // 어나니머스 사용자 ID (localStorage에 저장하여 일관성 유지)
   const anonymousUserId = useMemo(() => generateAnonymousUserId(), []);
-
-  // 안정적인 userId 값 (dependency array 크기 일정하게 유지)
-  const userId = useMemo(() => user?.id ?? '', [user?.id]);
 
   // 현재 사용자 정보
   const currentUser = useMemo(
@@ -85,21 +69,6 @@ export const BoardPage = () => {
           const actualUserId = user?.id || (currentUser.userId && !currentUser.userId.startsWith('anon_') ? currentUser.userId : undefined);
           const isOwnerCheck = fetchedBoard.ownerId === actualUserId;
           
-          // 디버깅: 소유자 확인 로그
-          if (process.env.NODE_ENV === 'development') {
-            console.log('비공개 보드 체크:', {
-              boardId: fetchedBoard.id,
-              boardOwnerId: fetchedBoard.ownerId,
-              actualUserId,
-              userObject: user,
-              userObjectId: user?.id,
-              currentUserId: currentUser.userId,
-              isPublic: fetchedBoard.isPublic,
-              isOwnerCheck,
-              isAnonymous,
-            });
-          }
-          
           // 소유자가 아닌 경우 모달 표시 (비로그인 유저 포함)
           if (!isOwnerCheck) {
             setIsPrivateBoardModalOpen(true);
@@ -116,74 +85,11 @@ export const BoardPage = () => {
   }, [boardId, currentUser.userId, user]);
 
   // 보드 정보 Realtime 구독 (이름, 설명, 공개/비공개 변경 감지)
-  const handleRealtimeBoardUpdate = useCallback(async (payload: { new: any; old: any }) => {
-    const updatedRow = payload.new as any;
-    
-    // 현재 사용자 정보
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    
-    // 소유자 이름 조회
-    const ownerName = await fetchOwnerName(updatedRow.owner_id, currentUser?.id);
-
-    // 사용자 선호도 조회 (기존 board에서 가져오기)
-    const effectiveUserId = currentUser?.id || undefined;
-    let isStarred = false;
-    let isPinned = false;
-    if (effectiveUserId && !effectiveUserId.startsWith('anon_')) {
-      try {
-        const { data: preferences } = await supabase
-          .from('user_board_preferences')
-          .select('is_starred, is_pinned')
-          .eq('board_id', boardId)
-          .eq('user_id', effectiveUserId)
-          .maybeSingle();
-        
-        if (preferences) {
-          isStarred = preferences.is_starred || false;
-          isPinned = preferences.is_pinned || false;
-        }
-      } catch (err) {
-        // 에러 무시 (익명 사용자 등)
-      }
-    }
-
-    // 요소 개수는 기존 board에서 가져오기
-    const elementCount = board?.elementCount || 0;
-
-    const boardRow = {
-      id: updatedRow.id,
-      name: updatedRow.name,
-      description: updatedRow.description,
-      owner_id: updatedRow.owner_id,
-      created_at: updatedRow.created_at,
-      updated_at: updatedRow.updated_at,
-      is_public: updatedRow.is_public,
-      owner_name: ownerName,
-      element_count: elementCount,
-      is_starred: isStarred,
-      is_pinned: isPinned,
-      my_last_activity_at: board?.myLastActivityAt,
-      invite_code: updatedRow.invite_code || undefined,
-    };
-
-    const updatedBoard = mapBoardRowToBoard(boardRow);
-    
-    // 보드 정보 업데이트
-    setBoard(updatedBoard);
-  }, [boardId, board]);
-
-  useRealtimeSubscription(
-    {
-      channelName: `board:${boardId}:info`,
-      table: 'boards',
-      filter: `id=eq.${boardId}`,
-      events: ['UPDATE'],
-      enabled: !!boardId,
-    },
-    {
-      onUpdate: handleRealtimeBoardUpdate,
-    }
-  );
+  useBoardRealtimeUpdates({
+    boardId,
+    board,
+    setBoard,
+  });
 
   // 현재 사용자가 보드 소유자인지 확인 (메모이제이션)
   const isOwner = useMemo(() => {
@@ -195,21 +101,21 @@ export const BoardPage = () => {
     return board?.ownerId || '';
   }, [board?.ownerId]);
 
-  // 현재 사용자 정보를 안정적인 값으로 추출
-  const currentUserId = useMemo(() => currentUser.userId, [currentUser.userId]);
-  const currentUserName = useMemo(() => currentUser.userName, [currentUser.userName]);
-
   // 협업 로직 (커서)
   const { cursors } = useCollaboration({
     boardId,
-    currentUserId,
-    currentUserName,
+    currentUserId: currentUser.userId,
+    currentUserName: currentUser.userName,
   });
 
   // 토스트 표시 함수
   const showToast = useCallback((message: string, type: ToastType = 'warning', duration = 3000) => {
+    // 권한 관련 메시지는 error 타입으로
+    const isPermissionError = message.includes('권한이 없습니다');
+    const finalType = isPermissionError ? 'error' : type;
+    
     const id = `toast-${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, message, type, duration }]);
+    setToasts((prev) => [...prev, { id, message, type: finalType, duration }]);
   }, []);
 
   const removeToast = useCallback((id: string) => {
@@ -219,8 +125,8 @@ export const BoardPage = () => {
   // 콘텐츠 관리 로직 (포스트잇, 이미지)
   const { elements, handlers } = useBoardContent({
     boardId,
-    currentUserId,
-    currentUserName,
+    currentUserId: currentUser.userId,
+    currentUserName: currentUser.userName,
     boardOwnerId,
     isOwner,
     onPermissionDenied: showToast,
@@ -272,42 +178,23 @@ export const BoardPage = () => {
     return true;
   }, [isAnonymous]);
 
-  // 작업 핸들러 래핑
-  const handleAddNote = useCallback((position: { x: number; y: number }) => {
-    if (!checkCanEdit()) return;
-    handlers.onAddNote(position);
-    setAddMode(null);
-  }, [checkCanEdit, handlers, setAddMode]);
-
-  const handleAddImage = useCallback((position: { x: number; y: number }) => {
-    if (!checkCanEdit()) return;
-    handleAddImageWithFileWrapper(position);
-  }, [checkCanEdit, handleAddImageWithFileWrapper]);
-
-  const handleElementMove = useCallback((elementId: string, position: { x: number; y: number }, isDragging?: boolean) => {
-    if (!checkCanEdit()) return;
-    handlers.onElementMove(elementId, position, isDragging);
-  }, [checkCanEdit, handlers]);
-
-  const handleElementResize = useCallback((elementId: string, size: { width: number; height: number }) => {
-    if (!checkCanEdit()) return;
-    handlers.onElementResize(elementId, size);
-  }, [checkCanEdit, handlers]);
-
-  const handleElementUpdate = useCallback((elementId: string, content: string) => {
-    if (!checkCanEdit()) return;
-    handlers.onElementUpdate(elementId, content);
-  }, [checkCanEdit, handlers]);
-
-  const handleElementColorChange = useCallback((elementId: string, color: string) => {
-    if (!checkCanEdit()) return;
-    handlers.onElementColorChange(elementId, color);
-  }, [checkCanEdit, handlers]);
-
-  const handleElementDelete = useCallback((elementId: string) => {
-    if (!checkCanEdit()) return;
-    handlers.onElementDelete(elementId);
-  }, [checkCanEdit, handlers]);
+  // 편집 권한이 보호된 핸들러들
+  const guardedHandlers = useEditGuardedHandlers({
+    handlers: {
+      ...handlers,
+      // onAddNote는 addMode를 null로 설정하는 추가 로직이 필요
+      onAddNote: (position: { x: number; y: number }) => {
+        handlers.onAddNote(position);
+        setAddMode(null);
+      },
+      // onAddImage는 handleAddImageWithFileWrapper를 사용
+      onAddImage: (position: { x: number; y: number }) => {
+        handleAddImageWithFileWrapper(position);
+      },
+    },
+    checkCanEdit,
+    onPermissionDenied: () => setIsSignupModalOpen(true),
+  });
 
   // 포스트잇 추가 버튼 클릭 시 체크
   const handleAddModeChange = useCallback((mode: 'note' | 'image' | null) => {
@@ -325,8 +212,10 @@ export const BoardPage = () => {
     handleImageButtonClick();
   }, [checkCanEdit, handleImageButtonClick]);
 
+  const { classes } = useTheme();
+
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className={`flex flex-col h-screen ${classes.bg}`}>
 
       {/* 툴바 */}
       <BoardToolbar
@@ -357,13 +246,13 @@ export const BoardPage = () => {
           boardId={boardId}
           elements={elements}
           cursors={cursors}
-          onElementMove={handleElementMove}
-          onElementResize={handleElementResize}
-          onElementUpdate={handleElementUpdate}
-          onElementColorChange={handleElementColorChange}
-          onElementDelete={handleElementDelete}
-          onAddNote={handleAddNote}
-          onAddImage={handleAddImage}
+          onElementMove={guardedHandlers.onElementMove}
+          onElementResize={guardedHandlers.onElementResize}
+          onElementUpdate={guardedHandlers.onElementUpdate}
+          onElementColorChange={guardedHandlers.onElementColorChange}
+          onElementDelete={guardedHandlers.onElementDelete}
+          onAddNote={guardedHandlers.onAddNote}
+          onAddImage={guardedHandlers.onAddImage}
           addMode={addMode}
           canEdit={!isAnonymous}
           onEditBlocked={() => setIsSignupModalOpen(true)}
@@ -374,7 +263,7 @@ export const BoardPage = () => {
 
       {/* 추가 모드 안내 */}
       {addMode && (
-        <div className="absolute bottom-4 left-4 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-2 text-sm text-gray-700">
+        <div className={`absolute bottom-4 left-4 ${classes.bg} ${classes.border} rounded-lg shadow-lg px-4 py-2 text-sm ${classes.textSecondary}`}>
           {addMode === 'note'
             ? '캔버스를 클릭하여 포스트잇을 추가하세요'
             : '이미지를 선택한 후 캔버스를 클릭하세요'}

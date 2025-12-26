@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { CursorPosition } from '@entities/element';
-import { formatUserName, CURRENT_USER_COLOR, useDraggable } from '@shared/lib';
+import { formatUserName, useDraggable, useTheme, createUniqueUserList } from '@shared/lib';
 
 interface CollaborationWidgetProps {
   cursors: CursorPosition[];
@@ -17,6 +17,7 @@ export const CollaborationWidget = ({
 }: CollaborationWidgetProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const { classes } = useTheme();
 
   // 클라이언트에서만 마운트 확인 (Hydration 에러 방지)
   useEffect(() => {
@@ -64,28 +65,8 @@ export const CollaborationWidget = ({
     excludeSelectors: ['button'],
   });
 
-  // 현재 사용자 포함한 전체 사용자 리스트
-  const allUsers = [
-    ...(currentUserId
-      ? [
-          {
-            userId: currentUserId,
-            userName: currentUserName || null,
-            color: CURRENT_USER_COLOR,
-          },
-        ]
-      : []),
-    ...cursors.map((cursor) => ({
-      userId: cursor.userId,
-      userName: cursor.userName,
-      color: cursor.color,
-    })),
-  ];
-
-  // 중복 제거
-  const uniqueUsers = Array.from(
-    new Map(allUsers.map((user) => [user.userId, user])).values()
-  );
+  // 현재 사용자 포함한 전체 사용자 리스트 (중복 제거)
+  const uniqueUsers = createUniqueUserList(currentUserId, currentUserName, cursors);
 
   // 서버에서는 렌더링하지 않음 (Hydration 에러 방지)
   if (!isMounted || uniqueUsers.length === 0) {
@@ -96,7 +77,7 @@ export const CollaborationWidget = ({
     <div
       ref={dragHandlers.ref}
       data-collaboration-widget
-      className={`absolute z-50 bg-white border border-gray-200 rounded-lg shadow-lg ${
+      className={`absolute z-50 ${classes.bg} ${classes.border} rounded-lg shadow-lg ${
         isDragging ? 'cursor-grabbing' : 'cursor-grab'
       } ${isExpanded ? 'w-[240px]' : 'w-auto'}`}
       style={{
@@ -112,10 +93,10 @@ export const CollaborationWidget = ({
       {/* 미니모드 */}
       {!isExpanded && (
         <div 
-          className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 transition-colors"
+          className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors`}
         >
           <svg
-            className="w-4 h-4 text-gray-500"
+            className={`w-4 h-4 ${classes.textTertiary}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -127,12 +108,12 @@ export const CollaborationWidget = ({
               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
             />
           </svg>
-          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+          <span className={`text-xs ${classes.textSecondary} font-medium whitespace-nowrap`}>
             {uniqueUsers.length}명 협업 중
           </span>
           {/* 아래에 더 있다는 표시 */}
           <svg
-            className="w-3 h-3 text-gray-400 ml-auto"
+            className={`w-3 h-3 ${classes.textTertiary} ml-auto`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -151,10 +132,10 @@ export const CollaborationWidget = ({
       {isExpanded && (
         <div className="w-[240px]">
           {/* 헤더 */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+          <div className={`flex items-center justify-between px-3 py-2 border-b ${classes.border}`}>
             <div className="flex items-center gap-2">
               <svg
-                className="w-4 h-4 text-gray-500"
+                className={`w-4 h-4 ${classes.textTertiary}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -166,13 +147,13 @@ export const CollaborationWidget = ({
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
-              <span className="text-sm font-medium text-gray-700">
+              <span className={`text-sm font-medium ${classes.textSecondary}`}>
                 {uniqueUsers.length}명 협업 중
               </span>
             </div>
             <button
               onClick={() => setIsExpanded(false)}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              className={`p-1 ${classes.textTertiary} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
               title="최소화"
             >
               <svg
@@ -196,13 +177,13 @@ export const CollaborationWidget = ({
             {uniqueUsers.map((user) => (
               <div
                 key={user.userId}
-                className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-md border border-gray-200"
+                className={`flex items-center gap-2 px-2 py-1.5 ${classes.bgSecondary} rounded-md ${classes.border}`}
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: user.color }}
                 />
-                <span className="text-xs text-gray-700 font-medium truncate">
+                <span className={`text-xs ${classes.textSecondary} font-medium truncate`}>
                   {formatUserName(user.userName)}
                 </span>
               </div>

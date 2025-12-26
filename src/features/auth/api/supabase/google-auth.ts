@@ -83,6 +83,12 @@ export async function getSession() {
   const { data: { session }, error } = await supabase.auth.getSession();
   
   if (error) {
+    // Refresh token 에러는 세션이 만료된 것으로 간주하고 null 반환
+    if (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token')) {
+      // 세션을 명시적으로 클리어
+      await supabase.auth.signOut();
+      return null;
+    }
     throw new Error(error.message);
   }
   

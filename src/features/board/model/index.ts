@@ -6,5 +6,6 @@ export { useBoardStats } from './use-board-stats'; // 활성화됨
 export { useBoardSort, type SortOption } from './use-board-sort'; // 활성화됨
 export { useCreateBoard } from './use-create-board'; // 활성화됨
 export { useBoardList } from './use-board-list'; // 활성화됨
+export { useBoardRealtimeUpdates } from './use-board-realtime-updates'; // 활성화됨
 // export { useBoard } from './use-board';
 

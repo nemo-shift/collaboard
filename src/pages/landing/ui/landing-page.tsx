@@ -2,6 +2,7 @@
 
 import { Footer } from '@shared/ui';
 import { useAuth } from '@features/auth';
+import { useTheme } from '@shared/lib';
 import {
   HeroSection,
   InteractiveDemoSection,
@@ -12,9 +13,10 @@ import {
 
 export const LandingPage = () => {
   const { isAuthenticated } = useAuth();
+  const { classes } = useTheme();
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${classes.bg}`}>
       <HeroSection isAuthenticated={isAuthenticated} />
       <InteractiveDemoSection />
       <FeaturesSection />

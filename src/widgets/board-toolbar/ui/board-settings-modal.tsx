@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@shared/ui';
+import { useTheme } from '@shared/lib';
 
 interface BoardSettingsModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const BoardSettingsModal = ({
 }: BoardSettingsModalProps) => {
   const [localIsPublic, setLocalIsPublic] = useState(isPublic);
   const [isSaving, setIsSaving] = useState(false);
+  const { classes } = useTheme();
 
   // isPublic이 변경되면 로컬 상태 업데이트
   useEffect(() => {
@@ -57,12 +59,12 @@ export const BoardSettingsModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-200">
+      <div className={`${classes.bg} rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 ${classes.border}`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">보드 설정</h2>
+          <h2 className={`text-2xl font-bold ${classes.text}`}>보드 설정</h2>
           <button
             onClick={handleCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`${classes.textTertiary} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
             disabled={isSaving || isLoading}
           >
             <svg
@@ -82,17 +84,17 @@ export const BoardSettingsModal = ({
         </div>
 
         {boardName && (
-          <p className="text-gray-600 mb-6">
+          <p className={`${classes.textSecondary} mb-6`}>
             <span className="font-semibold">{boardName}</span> 보드 설정
           </p>
         )}
 
         <div className="space-y-6">
           {/* 현재 상태 표시 */}
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className={`p-4 ${classes.bgSecondary} ${classes.border} rounded-lg`}>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">현재 상태:</span>
-              <span className={`text-sm font-semibold ${isPublic ? 'text-blue-600' : 'text-gray-600'}`}>
+              <span className={`text-sm font-medium ${classes.textSecondary}`}>현재 상태:</span>
+              <span className={`text-sm font-semibold ${isPublic ? 'text-blue-600 dark:text-blue-400' : classes.textSecondary}`}>
                 {isPublic ? '공개 보드' : '비공개 보드'}
               </span>
             </div>
@@ -100,14 +102,16 @@ export const BoardSettingsModal = ({
 
           {/* 공개/비공개 설정 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className={`block text-sm font-medium ${classes.textSecondary} mb-3`}>
               공개 설정 변경
             </label>
             <div className="space-y-3">
-              <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+              <label className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${
                 localIsPublic 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
+                  ? 'border-blue-500 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20' 
+                  : `${classes.border} hover:bg-gray-50 dark:hover:bg-gray-800`
+              } ${
+                (isSaving || isLoading) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
               }`}>
                 <input
                   type="radio"
@@ -115,10 +119,10 @@ export const BoardSettingsModal = ({
                   checked={localIsPublic}
                   onChange={() => setLocalIsPublic(true)}
                   disabled={isSaving || isLoading}
-                  className={`w-4 h-4 text-gray-900 focus:ring-gray-900 focus:ring-2 ${
+                  className={`w-4 h-4 ${classes.text} focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-2 ${
                     localIsPublic 
                       ? 'border-0 outline-none [&]:border-0' 
-                      : 'border border-gray-300'
+                      : classes.borderSecondary
                   }`}
                   style={localIsPublic ? { 
                     border: 'none !important', 
@@ -127,7 +131,7 @@ export const BoardSettingsModal = ({
                   } : undefined}
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900 flex items-center gap-2">
+                  <div className={`font-medium ${classes.text} flex items-center gap-2`}>
                     공개 보드
                     {localIsPublic && (
                       <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
@@ -138,10 +142,12 @@ export const BoardSettingsModal = ({
                 </div>
               </label>
 
-              <label className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+              <label className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${
                 !localIsPublic 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-200 hover:bg-gray-50'
+                  ? 'border-blue-500 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20' 
+                  : `${classes.border} hover:bg-gray-50 dark:hover:bg-gray-800`
+              } ${
+                (isSaving || isLoading) ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
               }`}>
                 <input
                   type="radio"
@@ -149,10 +155,10 @@ export const BoardSettingsModal = ({
                   checked={!localIsPublic}
                   onChange={() => setLocalIsPublic(false)}
                   disabled={isSaving || isLoading}
-                  className={`w-4 h-4 text-gray-900 focus:ring-gray-900 focus:ring-2 ${
+                  className={`w-4 h-4 ${classes.text} focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-2 ${
                     !localIsPublic 
                       ? 'border-0 outline-none [&]:border-0' 
-                      : 'border border-gray-300'
+                      : classes.borderSecondary
                   }`}
                   style={!localIsPublic ? { 
                     border: 'none !important', 
@@ -161,7 +167,7 @@ export const BoardSettingsModal = ({
                   } : undefined}
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900 flex items-center gap-2">
+                  <div className={`font-medium ${classes.text} flex items-center gap-2`}>
                     비공개 보드
                     {!localIsPublic && (
                       <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
@@ -175,23 +181,23 @@ export const BoardSettingsModal = ({
           </div>
 
           {localIsPublic && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
                공개로 설정하면 다른 사용자를 초대할 수 있습니다.
               </p>
             </div>
           )}
           
           {!localIsPublic && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800">
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-300">
                 비공개로 설정하면 다른 사용자를 초대할 수 없습니다.
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 justify-end mt-8 pt-6 border-t border-gray-200">
+        <div className={`flex gap-3 justify-end mt-8 pt-6 border-t ${classes.border}`}>
           <Button
             variant="outline"
             onClick={handleCancel}

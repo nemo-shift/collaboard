@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { BoardElement, CursorPosition } from '@entities/element';
 import { ColorPicker, DEFAULT_POSTIT_COLOR, ConfirmDialog } from '@shared/ui';
-import { formatUserName, DEFAULT_BACKGROUND_COLOR } from '@shared/lib';
+import { formatUserName, DEFAULT_BACKGROUND_COLOR, useTheme } from '@shared/lib';
 import { DEFAULT_NOTE_COLOR } from '@features/content/lib/constants';
 
 interface BoardCanvasProps {
@@ -45,6 +45,7 @@ export const BoardCanvas = ({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const { classes } = useTheme();
   
   // 드래그 중 실시간 위치 추적용 ref (리렌더링 없이 업데이트)
   // 리얼타임 협업을 고려: 자신의 패닝은 ref로 관리, 드래그 종료 시에만 상태 업데이트
@@ -398,7 +399,7 @@ export const BoardCanvas = ({
   return (
     <div
       ref={canvasRef}
-      className="relative w-full h-full bg-gray-50 overflow-hidden cursor-grab active:cursor-grabbing"
+      className={`relative w-full h-full ${classes.bgSecondary} overflow-hidden cursor-grab active:cursor-grabbing`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -427,7 +428,7 @@ export const BoardCanvas = ({
     >
       {/* 그리드 배경 */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
         style={{
           backgroundImage: `
             linear-gradient(to right, black 1px, transparent 1px),
@@ -526,7 +527,7 @@ export const BoardCanvas = ({
                 className={`w-full h-full rounded-lg shadow-sm p-3 hover:shadow-md transition-all relative ${
                   selectedElement === element.id && !isEditing
                     ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg'
-                    : 'border border-gray-200'
+                    : classes.border
                 }`}
                 style={{ backgroundColor: element.color || DEFAULT_BACKGROUND_COLOR }}
               >
@@ -555,7 +556,7 @@ export const BoardCanvas = ({
                           title="삭제 (Delete 키)"
                         >
                         <svg
-                          className="w-4 h-4 text-gray-900 hover:text-red-500 transition-colors"
+                          className={`w-4 h-4 ${classes.text} hover:text-red-500 transition-colors`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -615,7 +616,7 @@ export const BoardCanvas = ({
                         }
                       }}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-1 text-sm text-gray-900 resize-none outline-none border-none bg-transparent"
+                      className={`flex-1 text-sm ${classes.text} resize-none outline-none border-none bg-transparent`}
                       style={{ minHeight: '60px' }}
                       placeholder="텍스트를 입력하세요..."
                     />
@@ -623,14 +624,14 @@ export const BoardCanvas = ({
                 ) : (
                   <div className="h-full flex flex-col">
                     {/* 텍스트 영역 - 스크롤 가능, 생성자 표시 위까지만 */}
-                    <div className="text-sm text-gray-900 whitespace-pre-wrap break-words flex-1 min-h-[60px] overflow-y-auto note-scrollbar">
+                    <div className={`text-sm ${classes.text} whitespace-pre-wrap break-words flex-1 min-h-[60px] overflow-y-auto note-scrollbar`}>
                       {element.content || '더블클릭하여 편집'}
                     </div>
                     {/* 작성자 표시 - 항상 표시 (고정) */}
-                    <div className="mt-2 pt-2 border-t border-gray-200 flex-shrink-0">
+                    <div className={`mt-2 pt-2 border-t ${classes.border} flex-shrink-0`}>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                        <span className="text-xs text-gray-500">
+                        <div className={`w-1.5 h-1.5 rounded-full ${classes.textTertiary}`} />
+                        <span className={`text-xs ${classes.textTertiary}`}>
                           {formatUserName(element.userName)}
                         </span>
                       </div>
@@ -663,10 +664,10 @@ export const BoardCanvas = ({
               </div>
             ) : (
               <div
-                className={`w-full h-full rounded-lg overflow-hidden relative bg-white group transition-all ${
+                className={`w-full h-full rounded-lg overflow-hidden relative ${classes.bg} group transition-all ${
                   selectedElement === element.id
                     ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg'
-                    : 'border border-gray-200'
+                    : classes.border
                 }`}
               >
                 {/* 삭제 버튼 - 마우스 오버 시 표시, 오른쪽 상단 모서리 (이미지 안쪽) (보드 소유자이거나 요소 소유자인 경우만 표시) */}
@@ -684,7 +685,7 @@ export const BoardCanvas = ({
                     title="삭제 (Delete 키)"
                   >
                   <svg
-                    className="w-4 h-4 text-gray-900 hover:text-red-500 transition-colors"
+                    className={`w-4 h-4 ${classes.text} hover:text-red-500 transition-colors`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -773,7 +774,7 @@ export const BoardCanvas = ({
             style={{ backgroundColor: cursor.color }}
           />
           <div
-            className="absolute top-4 left-0 px-2 py-1 bg-white rounded shadow-sm text-xs font-medium whitespace-nowrap"
+            className={`absolute top-4 left-0 px-2 py-1 ${classes.bg} rounded shadow-sm text-xs font-medium whitespace-nowrap`}
             style={{ color: cursor.color }}
           >
             {formatUserName(cursor.userName)}
@@ -782,10 +783,10 @@ export const BoardCanvas = ({
       ))}
 
       {/* 줌 컨트롤 */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-white border border-gray-200 rounded-lg shadow-lg p-2">
+      <div className={`absolute bottom-4 right-4 flex flex-col gap-2 ${classes.bg} ${classes.border} rounded-lg shadow-lg p-2`}>
         <button
           onClick={() => setScale((prev) => Math.min(2, prev * 1.2))}
-          className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-50 rounded transition-colors"
+          className={`w-8 h-8 flex items-center justify-center ${classes.textSecondary} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
           title="줌인"
         >
           +
@@ -819,11 +820,11 @@ export const BoardCanvas = ({
               }
             }}
             autoFocus
-            className="w-12 h-6 text-xs text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+            className={`w-12 h-6 text-xs text-center ${classes.borderSecondary} rounded focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent ${classes.text}`}
           />
         ) : (
           <div
-            className="text-xs text-center text-gray-600 px-2 cursor-pointer hover:text-gray-900 transition-colors min-w-[48px]"
+            className={`text-xs text-center ${classes.textSecondary} px-2 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-w-[48px]`}
             onClick={() => {
               setZoomInputValue(Math.round(scale * 100).toString());
               setIsEditingZoom(true);
@@ -835,7 +836,7 @@ export const BoardCanvas = ({
         )}
         <button
           onClick={() => setScale((prev) => Math.max(0.25, prev * 0.8))}
-          className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-50 rounded transition-colors"
+          className={`w-8 h-8 flex items-center justify-center ${classes.textSecondary} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
           title="줌아웃"
         >
           −

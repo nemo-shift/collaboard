@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button, Input, GoogleButton } from '@shared/ui';
 import { useEmailAuth, useGoogleAuth } from '@features/auth';
+import { useTheme } from '@shared/lib';
 
 type AuthMode = 'login' | 'signup';
 
@@ -46,17 +47,18 @@ export const AuthPage = () => {
   const { handleGoogleLogin, isAuthenticating } = useGoogleAuth();
 
   const isSubmitting = isLoggingIn || isSigningUp || isAuthenticating;
+  const { classes } = useTheme();
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${classes.bg}`}>
 
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-6 sm:px-8 lg:px-12 py-12 sm:py-16">
         <div className="text-center mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 tracking-tight">
+          <h1 className={`text-3xl sm:text-4xl font-bold ${classes.text} mb-3 tracking-tight`}>
             {mode === 'login' ? '로그인' : '회원가입'}
           </h1>
-          <p className="text-base text-gray-600">
+          <p className={classes.textSecondary}>
             {mode === 'login'
               ? '계정에 로그인하여 시작하세요'
               : '새 계정을 만들어 아이디어를 공유하세요'}
@@ -64,16 +66,16 @@ export const AuthPage = () => {
         </div>
 
         {/* Auth Card - Glassmorphism */}
-        <div className="bg-white/80 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-xl p-8 sm:p-10">
+        <div className={`bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl ${classes.border} rounded-2xl shadow-xl p-8 sm:p-10`}>
           {/* Tab Switcher */}
-          <div className="flex gap-2 mb-8 p-1 bg-gray-50 rounded-xl">
+          <div className={`flex gap-2 mb-8 p-1 ${classes.bgSecondary} rounded-xl`}>
             <button
               type="button"
               onClick={() => setMode('login')}
               className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
                 mode === 'login'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? `${classes.bg} ${classes.text} shadow-sm`
+                  : `${classes.textSecondary} hover:text-gray-900 dark:hover:text-gray-100`
               }`}
             >
               로그인
@@ -83,8 +85,8 @@ export const AuthPage = () => {
               onClick={() => setMode('signup')}
               className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
                 mode === 'signup'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? `${classes.bg} ${classes.text} shadow-sm`
+                  : `${classes.textSecondary} hover:text-gray-900 dark:hover:text-gray-100`
               }`}
             >
               회원가입
@@ -109,10 +111,10 @@ export const AuthPage = () => {
           {/* Divider */}
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className={`w-full border-t ${classes.border}`}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-white/80 text-gray-500">또는</span>
+              <span className={`px-3 bg-white/80 dark:bg-gray-800/80 ${classes.textTertiary}`}>또는</span>
             </div>
           </div>
 

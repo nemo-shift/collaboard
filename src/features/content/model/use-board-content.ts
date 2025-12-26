@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { BoardElement } from '@entities/element';
 // import { mockElements } from './mock-elements'; // 더미 데이터 주석 처리
 import { calculateImageSize } from '../lib/calculate-image-size';
@@ -12,7 +12,7 @@ import {
   deleteBoardElement,
 } from '@features/content/api';
 import { uploadImage, deleteImage } from '@features/content/api/supabase/storage';
-import { useRealtimeSubscription, fetchUserName } from '@shared/lib';
+import { useRealtimeSubscription, fetchUserName, type RealtimeEvent } from '@shared/lib';
 import {
   mapElementRowToElement,
   type BoardElementRowWithJoins,
@@ -92,60 +92,48 @@ export const useBoardContent = ({
 
   // Realtime 구독: board_elements 테이블 변경 감지
   const shouldIgnoreRealtimeEvent = useCallback(
-    (payload: { new: any; old: any }, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
-      console.log(`[Realtime ${event}] shouldIgnore 호출:`, {
-        event,
-        payload,
-        currentUserId,
-        hasOld: !!payload.old,
-        hasNew: !!payload.new,
-        oldId: payload.old?.id,
-        newId: payload.new?.id,
-      });
-
+    (payload: { new: any; old: any }, event: RealtimeEvent) => {
       // DELETE 이벤트는 payload.old에 삭제된 행 데이터가 있음
       if (event === 'DELETE') {
         const deletedRow = payload.old;
-        console.log('[Realtime DELETE] shouldIgnore - 삭제된 행:', deletedRow);
         
         if (!deletedRow || !deletedRow.id) {
-          console.log('[Realtime DELETE] shouldIgnore - id가 없음, 무시하지 않음');
-          // id가 없으면 무시하지 않음 (다른 사용자의 삭제일 수 있음)
+          // id가 없으면 처리 (다른 사용자의 삭제일 수 있음)
           return false;
         }
         
         const deletedId = deletedRow.id;
+        const deletedUserId = deletedRow.user_id;
+        
+        // user_id가 없는 경우도 처리
+        if (!deletedUserId) {
+          return false;
+        }
+        
+        // 다른 사용자가 삭제한 경우는 항상 처리 (실시간 반영)
+        if (deletedUserId !== currentUserId) {
+          return false; // false = 무시하지 않음 = 처리함
+        }
+        
+        // 자신이 삭제한 경우에만 recentlyUpdatedRef 확인
         const recentlyUpdated = recentlyUpdatedRef.current.get(deletedId);
-        const timeSinceUpdate = recentlyUpdated ? Date.now() - recentlyUpdated : null;
-        
-        console.log('[Realtime DELETE] shouldIgnore - 삭제 추적 정보:', {
-          deletedId,
-          recentlyUpdated,
-          timeSinceUpdate,
-          willIgnore: recentlyUpdated && timeSinceUpdate && timeSinceUpdate < 1000,
-        });
-        
-        if (recentlyUpdated && timeSinceUpdate && timeSinceUpdate < 1000) {
+        if (recentlyUpdated && Date.now() - recentlyUpdated < 1000) {
           // 자신이 최근에 삭제한 요소는 무시 (optimistic update와 중복 방지)
-          console.log('[Realtime DELETE] shouldIgnore - 자신이 최근에 삭제한 요소 무시');
           return true;
         }
         
-        // 다른 사용자가 삭제한 경우는 무시하지 않음 (실시간 반영)
-        console.log('[Realtime DELETE] shouldIgnore - 다른 사용자의 삭제, 무시하지 않음');
+        // 자신이 삭제했지만 recentlyUpdatedRef에 없거나 시간이 지난 경우는 처리
         return false;
       }
       
       // INSERT, UPDATE는 payload.new 사용
       const row = payload.new;
       if (!row) {
-        console.log(`[Realtime ${event}] shouldIgnore - payload.new가 없음`);
         return false;
       }
       
       // INSERT: 자신이 생성한 요소는 무시
       if (event === 'INSERT' && row.user_id === currentUserId) {
-        console.log('[Realtime INSERT] shouldIgnore - 자신이 생성한 요소 무시');
         return true;
       }
       
@@ -156,7 +144,6 @@ export const useBoardContent = ({
         // 드래그 중인 요소 확인
         const dragStartTime = draggingElementsRef.current.get(elementId);
         if (dragStartTime && Date.now() - dragStartTime < 3000) {
-          console.log('[Realtime UPDATE] shouldIgnore - 드래그 중인 요소 무시');
           return true;
         }
         if (dragStartTime) {
@@ -166,12 +153,10 @@ export const useBoardContent = ({
         // 최근 업데이트한 요소 확인
         const recentlyUpdated = recentlyUpdatedRef.current.get(elementId);
         if (recentlyUpdated && Date.now() - recentlyUpdated < 1000) {
-          console.log('[Realtime UPDATE] shouldIgnore - 최근 업데이트한 요소 무시');
           return true;
         }
       }
       
-      console.log(`[Realtime ${event}] shouldIgnore - 무시하지 않음`);
       return false;
     },
     [currentUserId]
@@ -217,62 +202,41 @@ export const useBoardContent = ({
   }, []);
 
   const handleRealtimeDelete = useCallback((payload: { new: any; old: any }) => {
-    console.log('[Realtime DELETE] handleRealtimeDelete 호출:', {
-      payload,
-      oldId: payload.old?.id,
-      newId: payload.new?.id,
-      oldData: payload.old,
-      newData: payload.new,
-    });
+    const deletedRow = payload.old;
+    const deletedId = deletedRow?.id;
     
-    const deletedId = payload.old?.id;
     if (!deletedId) {
       console.error('[Realtime DELETE] id를 찾을 수 없습니다:', payload);
       return;
     }
     
-    console.log('[Realtime DELETE] 삭제할 요소 ID:', deletedId);
+    // 추적 정보도 제거
+    recentlyUpdatedRef.current.delete(deletedId);
+    draggingElementsRef.current.delete(deletedId);
     
     setElements((prev) => {
-      const beforeCount = prev.length;
-      const filtered = prev.filter((el) => {
-        const shouldKeep = el.id !== deletedId;
-        if (!shouldKeep) {
-          console.log('[Realtime DELETE] 요소 제거:', el.id, el);
-        }
-        return shouldKeep;
-      });
-      const afterCount = filtered.length;
+      const elementToDelete = prev.find((el) => el.id === deletedId);
       
-      console.log('[Realtime DELETE] 요소 삭제 결과:', {
-        beforeCount,
-        afterCount,
-        deletedId,
-        removed: beforeCount - afterCount,
-        currentElements: filtered.map(el => ({ id: el.id, type: el.type })),
-      });
+      if (!elementToDelete) {
+        // 이미 UI에 없으면 그대로 반환
+        return prev;
+      }
       
-      return filtered;
+      // 요소 제거
+      return prev.filter((el) => el.id !== deletedId);
     });
-  }, []);
+  }, [currentUserId]);
+
+  // events 배열을 메모이제이션하여 안정적인 의존성 보장
+  const realtimeEvents = useMemo(() => ['INSERT', 'UPDATE', 'DELETE'] as RealtimeEvent[], []);
 
   // board_elements 테이블 Realtime 구독
-  console.log('[useBoardContent] Realtime 구독 설정:', {
-    boardId,
-    channelName: `board:${boardId}:elements`,
-    enabled: !!boardId,
-    hasShouldIgnore: !!shouldIgnoreRealtimeEvent,
-    hasOnInsert: !!handleRealtimeInsert,
-    hasOnUpdate: !!handleRealtimeUpdate,
-    hasOnDelete: !!handleRealtimeDelete,
-  });
-
   useRealtimeSubscription(
     {
       channelName: `board:${boardId}:elements`,
       table: 'board_elements',
       filter: `board_id=eq.${boardId}`,
-      events: ['INSERT', 'UPDATE', 'DELETE'],
+      events: realtimeEvents,
       enabled: !!boardId,
     },
     {
@@ -285,6 +249,13 @@ export const useBoardContent = ({
 
   const handleElementMove = useCallback(
     async (elementId: string, position: { x: number; y: number }, isDragging: boolean = false) => {
+      // 요소가 존재하는지 확인
+      const elementExists = elements.some((el) => el.id === elementId);
+      if (!elementExists) {
+        console.warn('[handleElementMove] 요소가 존재하지 않습니다:', elementId);
+        return;
+      }
+      
       // 드래그 시작 시 추적
       if (isDragging && !draggingElementsRef.current.has(elementId)) {
         draggingElementsRef.current.set(elementId, Date.now());
@@ -306,11 +277,18 @@ export const useBoardContent = ({
         // Supabase로 업데이트
         try {
           await updateBoardElement(elementId, { position });
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to update element position:', error);
           // 에러 발생 시 추적 정보 제거
           recentlyUpdatedRef.current.delete(elementId);
           draggingElementsRef.current.delete(elementId);
+          
+          // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
+          if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+            setElements((prev) => prev.filter((el) => el.id !== elementId));
+            return;
+          }
+          
           // 에러 발생 시 이전 상태로 복구
           const loadElements = async () => {
             try {
@@ -324,11 +302,18 @@ export const useBoardContent = ({
         }
       }
     },
-    [boardId]
+    [boardId, elements]
   );
 
   const handleElementResize = useCallback(
     async (elementId: string, size: { width: number; height: number }) => {
+      // 요소가 존재하는지 확인
+      const elementExists = elements.some((el) => el.id === elementId);
+      if (!elementExists) {
+        console.warn('[handleElementResize] 요소가 존재하지 않습니다:', elementId);
+        return;
+      }
+      
       // 최근 업데이트 추적 (Realtime 이벤트 무시용)
       recentlyUpdatedRef.current.set(elementId, Date.now());
       
@@ -340,10 +325,17 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { size });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to update element size:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
+        
+        // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
+        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+          setElements((prev) => prev.filter((el) => el.id !== elementId));
+          return;
+        }
+        
         // 에러 발생 시 이전 상태로 복구
         const loadElements = async () => {
           try {
@@ -356,11 +348,18 @@ export const useBoardContent = ({
         loadElements();
       }
     },
-    [boardId]
+    [boardId, elements]
   );
 
   const handleElementUpdate = useCallback(
     async (elementId: string, content: string) => {
+      // 요소가 존재하는지 확인
+      const elementExists = elements.some((el) => el.id === elementId);
+      if (!elementExists) {
+        console.warn('[handleElementUpdate] 요소가 존재하지 않습니다:', elementId);
+        return;
+      }
+      
       // 최근 업데이트 추적 (Realtime 이벤트 무시용)
       recentlyUpdatedRef.current.set(elementId, Date.now());
       
@@ -372,10 +371,17 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { content });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to update element content:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
+        
+        // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
+        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+          setElements((prev) => prev.filter((el) => el.id !== elementId));
+          return;
+        }
+        
         // 에러 발생 시 이전 상태로 복구
         const loadElements = async () => {
           try {
@@ -388,11 +394,18 @@ export const useBoardContent = ({
         loadElements();
       }
     },
-    [boardId]
+    [boardId, elements]
   );
 
   const handleElementColorChange = useCallback(
     async (elementId: string, color: string) => {
+      // 요소가 존재하는지 확인
+      const elementExists = elements.some((el) => el.id === elementId);
+      if (!elementExists) {
+        console.warn('[handleElementColorChange] 요소가 존재하지 않습니다:', elementId);
+        return;
+      }
+      
       // 최근 업데이트 추적 (Realtime 이벤트 무시용)
       recentlyUpdatedRef.current.set(elementId, Date.now());
       
@@ -404,10 +417,17 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { color });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to update element color:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
+        
+        // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
+        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+          setElements((prev) => prev.filter((el) => el.id !== elementId));
+          return;
+        }
+        
         // 에러 발생 시 이전 상태로 복구
         const loadElements = async () => {
           try {
@@ -420,7 +440,7 @@ export const useBoardContent = ({
         loadElements();
       }
     },
-    [boardId]
+    [boardId, elements]
   );
 
   const handleElementDelete = useCallback(
@@ -440,41 +460,20 @@ export const useBoardContent = ({
       // 최근 삭제 추적 (Realtime 이벤트 무시용)
       const deleteTimestamp = Date.now();
       recentlyUpdatedRef.current.set(elementId, deleteTimestamp);
-      console.log('[handleElementDelete] 삭제 추적 정보 저장:', {
-        elementId,
-        timestamp: deleteTimestamp,
-        recentlyUpdatedMap: Array.from(recentlyUpdatedRef.current.entries()),
-      });
 
       // Optimistic update
-      console.log('[handleElementDelete] Optimistic update 시작');
-      setElements((prev) => {
-        const beforeCount = prev.length;
-        const filtered = prev.filter((el) => el.id !== elementId);
-        const afterCount = filtered.length;
-        console.log('[handleElementDelete] Optimistic update 결과:', {
-          beforeCount,
-          afterCount,
-          elementId,
-          removed: beforeCount - afterCount,
-        });
-        return filtered;
-      });
+      setElements((prev) => prev.filter((el) => el.id !== elementId));
 
       // Supabase로 삭제
-      console.log('[handleElementDelete] Supabase 삭제 시작:', elementId);
       try {
         await deleteBoardElement(elementId);
-        console.log('[handleElementDelete] Supabase 삭제 완료:', elementId);
         
         // 이미지인 경우 Storage에서도 삭제
         if (element.type === 'image' && element.content) {
           // blob URL이 아닌 경우에만 Storage에서 삭제
           if (!element.content.startsWith('blob:')) {
             try {
-              console.log('[handleElementDelete] Storage 이미지 삭제 시작:', element.content);
               await deleteImage(element.content);
-              console.log('[handleElementDelete] Storage 이미지 삭제 완료');
             } catch (storageError) {
               console.warn('Failed to delete image from storage:', storageError);
               // Storage 삭제 실패해도 계속 진행
@@ -485,13 +484,11 @@ export const useBoardContent = ({
         console.error('[handleElementDelete] Supabase 삭제 실패:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
-        console.log('[handleElementDelete] 에러로 인한 추적 정보 제거:', elementId);
         // 에러 발생 시 이전 상태로 복구
         const loadElements = async () => {
           try {
             const fetchedElements = await getBoardElements(boardId);
             setElements(fetchedElements);
-            console.log('[handleElementDelete] 요소 목록 복구 완료');
           } catch (err) {
             console.error('Failed to reload elements:', err);
           }

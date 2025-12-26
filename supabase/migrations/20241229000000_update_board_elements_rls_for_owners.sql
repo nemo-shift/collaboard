@@ -34,3 +34,4 @@ CREATE POLICY "Users can delete their own board elements or board owner can dele
     )
   );
 
+

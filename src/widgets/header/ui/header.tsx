@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@features/auth';
+import { ThemeToggle } from '@shared/ui';
 
 interface HeaderProps {
   showLogin?: boolean;
@@ -25,24 +26,25 @@ export const Header = ({
   };
 
   return (
-    <nav className="border-b border-gray-200 bg-white/90 backdrop-blur-xl sticky top-0 z-50">
+    <nav className="border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">Vibe Board</h1>
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Vibe Board</h1>
           </Link>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {isAuthenticated ? (
               <>
                 {userProfile && (
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
                     {userProfile.displayName || userProfile.email}
                   </span>
                 )}
                 {showLogout && (
                   <button
                     onClick={handleLogout}
-                    className="text-xs text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-200 font-medium"
+                    className="text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 font-medium"
                   >
                     로그아웃
                   </button>
@@ -52,7 +54,7 @@ export const Header = ({
               showLogin && (
                 <Link
                   href="/auth"
-                  className="text-xs text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-md hover:bg-gray-100 transition-colors duration-200 font-medium"
+                  className="text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 font-medium"
                 >
                   로그인
                 </Link>

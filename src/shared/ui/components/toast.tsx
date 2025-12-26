@@ -18,6 +18,19 @@ export const Toast = ({
   onClose,
 }: ToastProps) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [isShaking, setIsShaking] = useState(false);
+
+  // 권한 관련 메시지인지 확인
+  const isPermissionError = message.includes('권한이 없습니다');
+
+  useEffect(() => {
+    // error 타입이거나 권한 관련 메시지인 경우 진동 애니메이션 트리거
+    if (type === 'error' || isPermissionError) {
+      setIsShaking(true);
+      const shakeTimer = setTimeout(() => setIsShaking(false), 500);
+      return () => clearTimeout(shakeTimer);
+    }
+  }, [type, isPermissionError]);
 
   useEffect(() => {
     if (duration > 0) {
@@ -34,7 +47,7 @@ export const Toast = ({
 
   const typeStyles = {
     success: 'bg-green-50 border-green-200 text-green-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
+    error: 'bg-red-100 border-red-400 text-red-900 shadow-xl ring-2 ring-red-300',
     warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
     info: 'bg-blue-50 border-blue-200 text-blue-800',
   };
@@ -50,8 +63,10 @@ export const Toast = ({
 
   return (
     <div
-      className={`px-4 py-3 rounded-lg border shadow-lg flex items-center gap-3 min-w-[300px] max-w-md transition-all duration-300 ${
+      className={`px-5 py-4 rounded-lg border shadow-lg flex items-center gap-3 min-w-[350px] max-w-md transition-all duration-300 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+      } ${
+        isShaking ? 'animate-shake' : ''
       } ${typeStyles[type]}`}
     >
       {type === 'warning' && (
@@ -80,7 +95,7 @@ export const Toast = ({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
       )}

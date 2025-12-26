@@ -12,6 +12,7 @@ import {
 } from '@features/board';
 import { BoardStats } from '@widgets/board-stats';
 import { Button } from '@shared/ui';
+import { useTheme } from '@shared/lib';
 
 export const DashboardPage = () => {
   // 정렬 상태 관리
@@ -55,8 +56,10 @@ export const DashboardPage = () => {
     }
   };
 
+  const { classes } = useTheme();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${classes.bgSecondary}`}>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-8 sm:py-12">
@@ -102,11 +105,11 @@ export const DashboardPage = () => {
         {/* 정렬 옵션 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">정렬:</span>
+            <span className={`text-sm ${classes.textSecondary}`}>정렬:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all"
+              className={`px-3 py-1.5 text-sm ${classes.borderSecondary} rounded-lg ${classes.bg} focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent transition-all ${classes.text}`}
             >
               <option value="recent">최신순</option>
               <option value="starred">즐겨찾기</option>
@@ -133,8 +136,8 @@ export const DashboardPage = () => {
         {/* 로딩 상태 */}
         {isLoadingBoards ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-            <p className="text-gray-500">보드를 불러오는 중...</p>
+            <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${classes.text} mb-4`}></div>
+            <p className={classes.textTertiary}>보드를 불러오는 중...</p>
           </div>
         ) : (
           <>
@@ -143,13 +146,13 @@ export const DashboardPage = () => {
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <svg
-                    className="w-5 h-5 text-gray-700"
+                    className={`w-5 h-5 ${classes.textSecondary}`}
                     fill="currentColor"
                     viewBox="0 0 24 24"
                   >
                     <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z" />
                   </svg>
-                  <h2 className="text-lg font-semibold text-gray-900">고정된 보드</h2>
+                  <h2 className={`text-lg font-semibold ${classes.text}`}>고정된 보드</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6 mb-8">
                   {sortedPinnedBoards.map((board) => (
@@ -172,7 +175,7 @@ export const DashboardPage = () => {
                       >
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                       </svg>
-                      <h2 className="text-lg font-semibold text-gray-900">즐겨찾기</h2>
+                      <h2 className={`text-lg font-semibold ${classes.text}`}>즐겨찾기</h2>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
@@ -186,7 +189,7 @@ export const DashboardPage = () => {
               <>
                 {sortedPinnedBoards.length > 0 && (
                   <div className="mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">모든 보드</h2>
+                    <h2 className={`text-lg font-semibold ${classes.text} mb-4`}>모든 보드</h2>
                   </div>
                 )}
                 {/* Boards Grid */}
@@ -219,10 +222,10 @@ export const DashboardPage = () => {
               <div className="absolute top-6 right-6 w-44 h-44 bg-pink-50 rounded-xl shadow-lg transform rotate-[3deg] opacity-60 border border-pink-200" />
               <div className="absolute bottom-6 left-6 w-40 h-40 bg-blue-50 rounded-xl shadow-lg transform rotate-[-3deg] opacity-60 border border-blue-200" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+            <h2 className={`text-2xl sm:text-3xl font-bold ${classes.text} mb-3`}>
               아직 보드가 없습니다
             </h2>
-            <p className="text-gray-500 mb-8 text-center max-w-md text-base">
+            <p className={`${classes.textTertiary} mb-8 text-center max-w-md text-base`}>
               첫 번째 보드를 만들어서 아이디어를 정리하고 팀과 공유해보세요
             </p>
               <Button

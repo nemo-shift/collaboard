@@ -190,45 +190,58 @@ export async function getBoards(userId?: string): Promise<Board[]> {
     return [];
   }
 
-  // 1. 소유한 보드 ID 조회
-  const { data: ownedBoards, error: ownedError } = await supabase
-    .from('boards')
-    .select('id')
-    .eq('owner_id', userId);
+  try {
+    // 1. 소유한 보드 ID 조회
+    const { data: ownedBoards, error: ownedError } = await supabase
+      .from('boards')
+      .select('id')
+      .eq('owner_id', userId);
 
-  if (ownedError) {
-    throw new Error(ownedError.message);
-  }
+    if (ownedError) {
+      console.error('[getBoards] 소유한 보드 조회 실패:', ownedError);
+      throw new Error(`소유한 보드 조회 실패: ${ownedError.message}`);
+    }
 
-  // 2. 참여한 보드 ID 조회 (user_board_preferences)
-  const { data: participatedBoards, error: participatedError } = await supabase
-    .from('user_board_preferences')
-    .select('board_id')
-    .eq('user_id', userId);
+    // 2. 참여한 보드 ID 조회 (user_board_preferences)
+    const { data: participatedBoards, error: participatedError } = await supabase
+      .from('user_board_preferences')
+      .select('board_id')
+      .eq('user_id', userId);
 
-  if (participatedError) {
-    throw new Error(participatedError.message);
-  }
+    if (participatedError) {
+      // PGRST116, PGRST301은 데이터가 없는 경우 (정상)
+      if (participatedError.code === 'PGRST116' || participatedError.code === 'PGRST301') {
+        // 참여한 보드가 없는 경우 - 빈 배열로 처리
+      } else {
+        console.error('[getBoards] 참여한 보드 조회 실패:', participatedError);
+        throw new Error(`참여한 보드 조회 실패: ${participatedError.message}`);
+      }
+    }
 
-  // 3. 소유한 보드 ID + 참여한 보드 ID 합치기
-  const ownedBoardIds = (ownedBoards || []).map((b) => b.id);
-  const participatedBoardIds = (participatedBoards || []).map((p) => p.board_id);
-  const allBoardIds = [...new Set([...ownedBoardIds, ...participatedBoardIds])];
+    // 3. 소유한 보드 ID + 참여한 보드 ID 합치기
+    const ownedBoardIds = (ownedBoards || []).map((b) => b.id);
+    const participatedBoardIds = (participatedBoards || []).map((p) => p.board_id);
+    const allBoardIds = [...new Set([...ownedBoardIds, ...participatedBoardIds])];
 
-  if (allBoardIds.length === 0) {
-    return [];
-  }
+    if (allBoardIds.length === 0) {
+      return [];
+    }
 
-  // 4. 해당 보드들의 전체 데이터 조회
-  const { data: boards, error: boardsError } = await supabase
-    .from('boards')
-    .select('*')
-    .in('id', allBoardIds)
-    .order('updated_at', { ascending: false });
+    // 4. 해당 보드들의 전체 데이터 조회
+    const { data: boards, error: boardsError } = await supabase
+      .from('boards')
+      .select('*')
+      .in('id', allBoardIds)
+      .order('updated_at', { ascending: false });
 
-  if (boardsError) {
-    throw new Error(boardsError.message);
-  }
+    if (boardsError) {
+      console.error('[getBoards] 보드 데이터 조회 실패:', boardsError);
+      // 네트워크 에러인 경우 더 명확한 메시지
+      if (boardsError.message?.includes('fetch') || boardsError.message?.includes('network')) {
+        throw new Error('네트워크 연결을 확인해주세요. Supabase 서버에 연결할 수 없습니다.');
+      }
+      throw new Error(`보드 데이터 조회 실패: ${boardsError.message}`);
+    }
 
   if (!boards || boards.length === 0) {
     return [];
@@ -236,25 +249,26 @@ export async function getBoards(userId?: string): Promise<Board[]> {
 
   const boardIds = boards.map((b) => b.id);
 
-  // 요소 개수 조회 (각 보드별로 집계)
-  const { data: elementCounts, error: countError } = await supabase
-    .from('board_elements')
-    .select('board_id')
-    .in('board_id', boardIds);
+    // 요소 개수 조회 (각 보드별로 집계)
+    const { data: elementCounts, error: countError } = await supabase
+      .from('board_elements')
+      .select('board_id')
+      .in('board_id', boardIds);
 
-  if (countError) {
-    throw new Error(countError.message);
-  }
+    if (countError) {
+      console.error('[getBoards] 요소 개수 조회 실패:', countError);
+      // 요소 개수 조회 실패는 치명적이지 않으므로 빈 맵으로 처리
+    }
 
-  // 요소 개수 집계
-  const elementCountMap = elementCounts?.reduce((acc, el) => {
-    acc[el.board_id] = (acc[el.board_id] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>) || {};
+    // 요소 개수 집계
+    const elementCountMap = elementCounts?.reduce((acc, el) => {
+      acc[el.board_id] = (acc[el.board_id] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
 
-  // 사용자별 선호도 조회 (익명 사용자는 UUID가 아니므로 조회하지 않음)
-  let preferencesMap: Record<string, { is_starred: boolean; is_pinned: boolean }> = {};
-  if (userId && !userId.startsWith('anon_')) {
+    // 사용자별 선호도 조회 (익명 사용자는 UUID가 아니므로 조회하지 않음)
+    let preferencesMap: Record<string, { is_starred: boolean; is_pinned: boolean }> = {};
+    if (userId && !userId.startsWith('anon_')) {
     try {
       const { data: preferences, error: prefError } = await supabase
         .from('user_board_preferences')
@@ -288,44 +302,45 @@ export async function getBoards(userId?: string): Promise<Board[]> {
     }
   }
 
-  // 사용자별 최근 활동 조회
-  let activityMap: Record<string, string> = {};
-  if (userId) {
-    const { data: activities, error: activityError } = await supabase
-      .from('board_elements')
-      .select('board_id, updated_at')
-      .eq('user_id', userId)
-      .in('board_id', boardIds)
-      .order('updated_at', { ascending: false });
+    // 사용자별 최근 활동 조회
+    let activityMap: Record<string, string> = {};
+    if (userId) {
+      const { data: activities, error: activityError } = await supabase
+        .from('board_elements')
+        .select('board_id, updated_at')
+        .eq('user_id', userId)
+        .in('board_id', boardIds)
+        .order('updated_at', { ascending: false });
 
-    if (activityError) {
-      throw new Error(activityError.message);
+      if (activityError) {
+        console.error('[getBoards] 활동 조회 실패:', activityError);
+        // 활동 조회 실패는 치명적이지 않으므로 빈 맵으로 처리
+      } else {
+        // 각 보드별 최신 활동만 추출
+        activityMap = (activities || []).reduce((acc, activity) => {
+          if (!acc[activity.board_id] || new Date(activity.updated_at) > new Date(acc[activity.board_id])) {
+            acc[activity.board_id] = activity.updated_at;
+          }
+          return acc;
+        }, {} as Record<string, string>);
+      }
     }
 
-    // 각 보드별 최신 활동만 추출
-    activityMap = (activities || []).reduce((acc, activity) => {
-      if (!acc[activity.board_id] || new Date(activity.updated_at) > new Date(acc[activity.board_id])) {
-        acc[activity.board_id] = activity.updated_at;
-      }
+    // 소유자 정보 조회 (users 테이블에서 조인)
+    const ownerIds = [...new Set(boards.map((b) => b.owner_id))];
+    const ownerProfiles = await getUserProfiles(ownerIds);
+
+    // 소유자 정보 매핑
+    const ownerMap = ownerProfiles.reduce((acc, profile) => {
+      acc[profile.id] = profile.displayName || profile.email?.split('@')[0] || '알 수 없음';
       return acc;
     }, {} as Record<string, string>);
-  }
 
-  // 소유자 정보 조회 (users 테이블에서 조인)
-  const ownerIds = [...new Set(boards.map((b) => b.owner_id))];
-  const ownerProfiles = await getUserProfiles(ownerIds);
+    // 현재 사용자 정보 (자신의 보드는 "나"로 표시)
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-  // 소유자 정보 매핑
-  const ownerMap = ownerProfiles.reduce((acc, profile) => {
-    acc[profile.id] = profile.displayName || profile.email?.split('@')[0] || '알 수 없음';
-    return acc;
-  }, {} as Record<string, string>);
-
-  // 현재 사용자 정보 (자신의 보드는 "나"로 표시)
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-  // 데이터 변환
-  return boards.map((row) => {
+    // 데이터 변환
+    return boards.map((row) => {
     // 현재 사용자가 소유자면 "나"로 표시, 아니면 프로필에서 가져온 이름
     let ownerName: string | undefined = undefined;
     if (currentUser && row.owner_id === currentUser.id) {
@@ -349,8 +364,17 @@ export async function getBoards(userId?: string): Promise<Board[]> {
       my_last_activity_at: activityMap[row.id] || undefined,
     };
 
-    return mapBoardRowToBoard(boardRow);
-  });
+      return mapBoardRowToBoard(boardRow);
+    });
+  } catch (error: any) {
+    // 네트워크 에러나 기타 예외 처리
+    console.error('[getBoards] 전체 에러:', error);
+    if (error?.message?.includes('fetch') || error?.message?.includes('network') || error?.message?.includes('Failed to fetch')) {
+      throw new Error('네트워크 연결을 확인해주세요. Supabase 서버에 연결할 수 없습니다.');
+    }
+    // 이미 처리된 에러는 그대로 throw
+    throw error;
+  }
 }
 
 /**

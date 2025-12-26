@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Button, InviteModal } from '@shared/ui';
+import { Button, InviteModal, Tooltip } from '@shared/ui';
 import { BoardSettingsModal } from './board-settings-modal';
 import type { CursorPosition } from '@entities/element';
 
@@ -34,7 +34,6 @@ export const BoardToolbar = ({
   onFileSelect,
   onBoardUpdate,
   isOwner = false,
-  onBoardUpdated,
 }: BoardToolbarProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -330,17 +329,23 @@ export const BoardToolbar = ({
             />
           </div>
 
-          <Button 
-            variant="secondary" 
-            className="text-sm"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsInviteModalOpen(true);
-            }}
+          <Tooltip
+            content="비공개 보드는 초대할 수 없습니다"
+            disabled={isPublic}
           >
-            초대
-          </Button>
+            <Button 
+              variant="secondary" 
+              className="text-sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsInviteModalOpen(true);
+              }}
+              disabled={!isPublic}
+            >
+              초대
+            </Button>
+          </Tooltip>
           {isOwner && (
             <Button 
               variant="secondary" 
@@ -360,8 +365,9 @@ export const BoardToolbar = ({
       <InviteModal
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
-        inviteLink={inviteLink}
+        inviteLink={isPublic ? inviteLink : ''}
         boardName={boardName}
+        isPublic={isPublic}
       />
 
       {isOwner && (

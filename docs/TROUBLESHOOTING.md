@@ -6,6 +6,7 @@
 
 1. [드래그 기능 이벤트 리스너 참조 불일치 문제](#1-드래그-기능-이벤트-리스너-참조-불일치-문제)
 2. [보드 캔버스와 드래그 위젯 이벤트 충돌 문제](#2-보드-캔버스와-드래그-위젯-이벤트-충돌-문제)
+3. [Supabase Realtime DELETE 이벤트가 다른 사용자에게 반영되지 않는 문제](#3-supabase-realtime-delete-이벤트가-다른-사용자에게-반영되지-않는-문제)
 
 ---
 
@@ -13,7 +14,7 @@
 
 ### 문제 상황
 
-**날짜**: 2025년 12월  
+**날짜**: 2024년 12월  
 **파일**: `src/shared/lib/use-draggable.ts`  
 **증상**: 협업 위젯 드래그 기능이 첫 번째 시도에서 약간만 움직이다가 멈추는 현상 발생. 두 번째 시도부터는 정상 작동.
 
@@ -363,5 +364,249 @@ useEffect(() => {
 
 ---
 
-**마지막 업데이트**: 2024년 12월
+## 3. Supabase Realtime DELETE 이벤트가 다른 사용자에게 반영되지 않는 문제
+
+### 문제 상황
+
+**날짜**: 2025년 12월 26일  
+**파일**: `src/shared/lib/use-realtime-subscription.ts`, `src/features/content/model/use-board-content.ts`  
+**증상**: 한 사용자가 보드 요소(포스트잇, 이미지)를 삭제해도 다른 사용자의 화면에서 실시간으로 사라지지 않음. 새로고침하면 사라짐.
+
+### 증상 상세
+
+- **INSERT 이벤트**: 정상 작동 (다른 사용자가 생성한 요소가 실시간으로 보임)
+- **UPDATE 이벤트**: 정상 작동 (다른 사용자가 이동/수정한 요소가 실시간으로 반영됨)
+- **DELETE 이벤트**: 작동하지 않음 (다른 사용자가 삭제한 요소가 실시간으로 사라지지 않음)
+- **커서 위치**: 정상 작동 (다른 사용자의 커서가 실시간으로 보임)
+
+### 원인 분석
+
+#### 1단계: 초기 진단
+
+콘솔 로그를 통해 확인한 사실:
+- `useRealtimeSubscription` 훅이 호출됨
+- DELETE 이벤트 리스너가 등록됨
+- 하지만 `[RealtimeSubscription] DELETE 이벤트 수신` 로그가 전혀 나타나지 않음
+- `handleRealtimeDelete` 함수가 호출되지 않음
+
+#### 2단계: 근본 원인 발견
+
+**핵심 문제 1**: PostgreSQL의 `REPLICA IDENTITY` 설정이 `DEFAULT`로 되어 있어 DELETE 이벤트에서 `payload.old`에 전체 행 데이터가 포함되지 않음
+
+**핵심 문제 2**: `useEffect`의 의존성 배열이 계속 변경되어 cleanup만 실행되고 다시 실행되지 않음
+
+**핵심 문제 3**: `channelName`과 `filter`가 매번 새로운 문자열로 생성되어 의존성 배열이 불안정함
+
+### 시행착오 과정
+
+#### 시도 1: DELETE 이벤트 핸들러 로직 강화
+
+```typescript
+// handleRealtimeDelete 함수에 더 많은 로깅 추가
+// shouldIgnoreRealtimeEvent에서 DELETE 이벤트 처리 로직 개선
+```
+
+**결과**: 로그는 추가되었지만 여전히 DELETE 이벤트가 수신되지 않음
+
+#### 시도 2: useEffect 의존성 배열 단순화
+
+```typescript
+// events 배열을 메모이제이션
+const realtimeEvents = useMemo(() => ['INSERT', 'UPDATE', 'DELETE'] as RealtimeEvent[], []);
+
+// channelName과 filter를 메모이제이션
+const channelName = useMemo(() => channelNameProp, [channelNameProp]);
+const filter = useMemo(() => filterProp, [filterProp]);
+```
+
+**결과**: 부분 성공 - 하지만 여전히 `useEffect`가 실행되지 않는 경우가 있음
+
+#### 시도 3: 이전 값과 비교하여 실제 변경 시에만 실행
+
+```typescript
+// prevValuesRef를 사용하여 이전 값과 비교
+const prevValuesRef = useRef({
+  enabled,
+  channelName,
+  schema,
+  table,
+  filter,
+  eventsKey,
+});
+
+useEffect(() => {
+  const prev = prevValuesRef.current;
+  const hasChanged = 
+    prev.enabled !== enabled ||
+    prev.channelName !== channelName ||
+    // ...
+  
+  if (!hasChanged && channelRef.current) {
+    return; // 변경 없으면 스킵
+  }
+  // ...
+}, [/* 의존성 배열 */]);
+```
+
+**결과**: 부분 성공 - 하지만 여전히 DELETE 이벤트가 수신되지 않음
+
+#### 시도 4: REPLICA IDENTITY FULL 적용 (최종 해결)
+
+```sql
+-- supabase/migrations/20241230000001_set_replica_identity_full.sql
+ALTER TABLE board_elements REPLICA IDENTITY FULL;
+```
+
+**결과**: 성공 ✅
+
+### 최종 해결 방법
+
+#### 핵심 아이디어
+
+PostgreSQL의 `REPLICA IDENTITY` 설정을 `FULL`로 변경하여 DELETE 이벤트에서 삭제된 행의 전체 데이터를 `payload.old`에 포함시킴.
+
+#### 구현 코드
+
+**1. 마이그레이션 파일 생성**
+
+```sql
+-- supabase/migrations/20241230000001_set_replica_identity_full.sql
+-- Set REPLICA IDENTITY FULL for board_elements table
+-- This ensures that DELETE events include the full old row data in payload.old
+-- Required for Supabase Realtime to send complete deleted row information
+
+ALTER TABLE board_elements REPLICA IDENTITY FULL;
+```
+
+**2. DELETE 이벤트 핸들러**
+
+```typescript
+// src/features/content/model/use-board-content.ts
+const handleRealtimeDelete = useCallback((payload: { new: any; old: any }) => {
+  const deletedRow = payload.old;
+  const deletedId = deletedRow?.id;
+  
+  if (!deletedId) {
+    console.error('[Realtime DELETE] id를 찾을 수 없습니다:', payload);
+    return;
+  }
+  
+  // 추적 정보도 제거
+  recentlyUpdatedRef.current.delete(deletedId);
+  draggingElementsRef.current.delete(deletedId);
+  
+  setElements((prev) => {
+    const elementToDelete = prev.find((el) => el.id === deletedId);
+    
+    if (!elementToDelete) {
+      // 이미 UI에 없으면 그대로 반환
+      return prev;
+    }
+    
+    // 요소 제거
+    return prev.filter((el) => el.id !== deletedId);
+  });
+}, [currentUserId]);
+```
+
+**3. shouldIgnoreRealtimeEvent 로직**
+
+```typescript
+// DELETE 이벤트는 payload.old에 삭제된 행 데이터가 있음
+if (event === 'DELETE') {
+  const deletedRow = payload.old;
+  
+  if (!deletedRow || !deletedRow.id) {
+    return false; // id가 없으면 처리
+  }
+  
+  const deletedId = deletedRow.id;
+  const deletedUserId = deletedRow.user_id;
+  
+  // 다른 사용자가 삭제한 경우는 항상 처리 (실시간 반영)
+  if (deletedUserId !== currentUserId) {
+    return false; // false = 무시하지 않음 = 처리함
+  }
+  
+  // 자신이 삭제한 경우에만 recentlyUpdatedRef 확인
+  const recentlyUpdated = recentlyUpdatedRef.current.get(deletedId);
+  if (recentlyUpdated && Date.now() - recentlyUpdated < 1000) {
+    // 자신이 최근에 삭제한 요소는 무시 (optimistic update와 중복 방지)
+    return true;
+  }
+  
+  return false;
+}
+```
+
+### REPLICA IDENTITY 설명
+
+PostgreSQL의 `REPLICA IDENTITY`는 logical replication에서 변경된 행을 식별하는 방법을 결정합니다:
+
+- **DEFAULT**: PRIMARY KEY만 복제 (DELETE 이벤트에서 `payload.old`에 id만 포함될 수 있음)
+- **FULL**: 전체 행 복제 (DELETE 이벤트에서 `payload.old`에 모든 컬럼 포함)
+- **INDEX**: 특정 인덱스 사용
+- **NOTHING**: 복제하지 않음
+
+Supabase Realtime에서 DELETE 이벤트의 `payload.old`에 삭제된 행의 전체 데이터를 포함하려면 `REPLICA IDENTITY FULL`이 필요합니다.
+
+### 확인 방법
+
+마이그레이션 적용 후 확인:
+
+```sql
+SELECT 
+  n.nspname as schemaname,
+  c.relname as tablename, 
+  CASE c.relreplident
+    WHEN 'd' THEN 'DEFAULT'
+    WHEN 'n' THEN 'NOTHING'
+    WHEN 'i' THEN 'INDEX'
+    WHEN 'f' THEN 'FULL'
+    ELSE 'UNKNOWN'
+  END as replica_identity
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' 
+  AND c.relname = 'board_elements';
+```
+
+결과: `replica_identity = 'FULL'`
+
+### 교훈
+
+1. **Supabase Realtime DELETE 이벤트는 REPLICA IDENTITY FULL 필요**
+   - DELETE 이벤트에서 `payload.old`에 전체 행 데이터를 포함하려면 테이블에 `REPLICA IDENTITY FULL` 설정 필요
+   - 기본값(DEFAULT)은 PRIMARY KEY만 복제하므로 DELETE 이벤트에서 전체 데이터를 받을 수 없음
+
+2. **useEffect 의존성 배열 안정화**
+   - 문자열 리터럴(`\`board:${boardId}:elements\``)은 매번 새로운 참조 생성
+   - `useMemo`로 메모이제이션하여 안정적인 의존성 보장
+   - 이전 값과 비교하여 실제 변경 시에만 실행하도록 최적화
+
+3. **디버깅 전략**
+   - 콘솔 로그로 이벤트 수신 여부 확인
+   - `payload.old` 구조 확인 (REPLICA IDENTITY 설정 확인)
+   - `useEffect` 실행 여부 확인 (의존성 배열 문제 확인)
+
+4. **배열 mutate 문제는 없었음**
+   - `setElements`에서 `prev.filter()` 사용으로 새로운 배열 생성
+   - 직접 mutate 메서드(`push`, `pop`, `splice` 등) 사용하지 않음
+   - React가 상태 변경을 정상적으로 감지함
+
+### 관련 파일
+
+- `supabase/migrations/20241230000001_set_replica_identity_full.sql` - REPLICA IDENTITY FULL 설정
+- `src/shared/lib/use-realtime-subscription.ts` - Realtime 구독 훅
+- `src/features/content/model/use-board-content.ts` - 보드 요소 관리 훅
+
+### 참고 자료
+
+- [PostgreSQL REPLICA IDENTITY 문서](https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-REPLICA-IDENTITY)
+- [Supabase Realtime 문서](https://supabase.com/docs/guides/realtime)
+- [Supabase Realtime Postgres Changes](https://supabase.com/docs/guides/realtime/postgres-changes)
+
+---
+
+**마지막 업데이트**: 2025년 12월 26일
 

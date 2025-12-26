@@ -37,12 +37,14 @@ Supabase 대시보드에서:
 
 1. Storage 섹션으로 이동
 2. 새 버킷 생성:
-   - 이름: `board-images`
-   - Public: true (공개 접근 허용)
+   - 이름: `board-image`
+   - Public: false (private 버킷, signed URL 사용)
 3. Storage Policies 설정:
    - Authenticated users can upload files
-   - Authenticated users can update their own files
+   - Authenticated users can read files (또는 버킷을 public으로 설정)
    - Authenticated users can delete their own files
+   
+**참고**: 버킷이 private인 경우, 코드에서 자동으로 signed URL을 생성합니다. 버킷을 public으로 설정하면 public URL을 사용할 수 있습니다.
 
 ### 5. 인증 설정
 

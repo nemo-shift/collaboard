@@ -1,18 +1,22 @@
 'use client';
 
+import { useTheme } from '@shared/lib';
+
 export const FeaturesSection = () => {
+  const { classes } = useTheme();
+
   return (
-    <section className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-20 sm:py-24 border-t border-gray-200 bg-white">
+    <section className={`max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-20 sm:py-24 border-t ${classes.border} ${classes.bg}`}>
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 text-center mb-12 sm:mb-16 tracking-tight">
+        <h2 className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${classes.text} text-center mb-12 sm:mb-16 tracking-tight`}>
           함께 작업하는 새로운 방식
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-12">
           {/* Feature 1 */}
           <div className="text-center group">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-white border border-gray-200 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+            <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl ${classes.bg} ${classes.border} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300`}>
               <svg
-                className="w-8 h-8 text-gray-900"
+                className={`w-8 h-8 ${classes.text}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -25,19 +29,19 @@ export const FeaturesSection = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+            <h3 className={`text-xl font-semibold ${classes.text} mb-3`}>
               실시간 협업
             </h3>
-            <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <p className={`${classes.textSecondary} leading-relaxed text-sm sm:text-base`}>
               여러 사람이 동시에 작업하고 변경사항이 즉시 반영됩니다
             </p>
           </div>
 
           {/* Feature 2 */}
           <div className="text-center group">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+            <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl ${classes.bgSecondary} ${classes.border} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300`}>
               <svg
-                className="w-8 h-8 text-gray-900"
+                className={`w-8 h-8 ${classes.text}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -50,19 +54,19 @@ export const FeaturesSection = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+            <h3 className={`text-xl font-semibold ${classes.text} mb-3`}>
               자유로운 아이디어 표현
             </h3>
-            <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <p className={`${classes.textSecondary} leading-relaxed text-sm sm:text-base`}>
               포스트잇과 이미지로 아이디어를 자유롭게 표현하고 정리하세요
             </p>
           </div>
 
           {/* Feature 3 */}
           <div className="text-center group">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-white border border-gray-200 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+            <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl ${classes.bg} ${classes.border} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300`}>
               <svg
-                className="w-8 h-8 text-gray-900"
+                className={`w-8 h-8 ${classes.text}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -75,19 +79,19 @@ export const FeaturesSection = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+            <h3 className={`text-xl font-semibold ${classes.text} mb-3`}>
               미니멀한 디자인
             </h3>
-            <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <p className={`${classes.textSecondary} leading-relaxed text-sm sm:text-base`}>
               깔끔하고 직관적인 인터페이스로 집중해서 작업하세요
             </p>
           </div>
 
           {/* Feature 4 - 보드 공유 */}
           <div className="text-center group">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+            <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl ${classes.bgSecondary} ${classes.border} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300`}>
               <svg
-                className="w-8 h-8 text-gray-900"
+                className={`w-8 h-8 ${classes.text}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -100,19 +104,19 @@ export const FeaturesSection = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+            <h3 className={`text-xl font-semibold ${classes.text} mb-3`}>
               간편한 보드 공유
             </h3>
-            <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <p className={`${classes.textSecondary} leading-relaxed text-sm sm:text-base`}>
               링크 하나로 팀원을 초대하고 함께 작업하세요
             </p>
           </div>
 
           {/* Feature 5 - 대시보드 관리 */}
           <div className="text-center group">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-white border border-gray-200 flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+            <div className={`w-16 h-16 mx-auto mb-6 rounded-2xl ${classes.bg} ${classes.border} flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-300`}>
               <svg
-                className="w-8 h-8 text-gray-900"
+                className={`w-8 h-8 ${classes.text}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -125,10 +129,10 @@ export const FeaturesSection = () => {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+            <h3 className={`text-xl font-semibold ${classes.text} mb-3`}>
               대시보드로 관리
             </h3>
-            <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+            <p className={`${classes.textSecondary} leading-relaxed text-sm sm:text-base`}>
               모든 보드를 한 곳에서 관리하고 통계를 확인하세요
             </p>
           </div>

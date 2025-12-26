@@ -74,24 +74,29 @@ export function useRealtimeSubscription<T = any>(
   config: RealtimeSubscriptionConfig,
   callbacks: RealtimeSubscriptionCallbacks<T>
 ): void {
-  console.log('[RealtimeSubscription] 훅 호출:', {
-    channelName: config.channelName,
-    table: config.table,
-    enabled: config.enabled,
-  });
 
   const {
-    channelName,
+    channelName: channelNameProp,
     table,
     schema = 'public',
-    filter,
+    filter: filterProp,
     events: eventsProp = ['INSERT', 'UPDATE', 'DELETE'],
     enabled = true,
   } = config;
 
-  // events 배열을 메모이제이션하여 의존성 배열 안정화
-  const eventsString = useMemo(() => eventsProp.join(','), [eventsProp.join(',')]);
-  const events = useMemo(() => eventsProp, [eventsString]);
+  // channelName과 filter를 메모이제이션하여 안정적인 의존성 보장
+  const channelName = useMemo(() => channelNameProp, [channelNameProp]);
+  const filter = useMemo(() => filterProp, [filterProp]);
+
+  // events 배열을 직접 사용
+  const events = eventsProp;
+  
+  // events 배열을 문자열로 변환하여 안정적인 의존성 생성
+  const eventsKey = useMemo(() => {
+    // 배열을 정렬하여 안정적인 키 생성
+    const sorted = [...eventsProp].sort();
+    return sorted.join(',');
+  }, [eventsProp.length]); // 길이만 의존성으로 사용 (내용은 고정되어 있으므로)
 
   const {
     onInsert,
@@ -108,6 +113,16 @@ export function useRealtimeSubscription<T = any>(
   const onDeleteRef = useRef(onDelete);
   const shouldIgnoreRef = useRef(shouldIgnore);
 
+  // 이전 값들을 저장하여 실제 변경 여부 확인
+  const prevValuesRef = useRef({
+    enabled,
+    channelName,
+    schema,
+    table,
+    filter,
+    eventsKey,
+  });
+
   // 함수 참조 업데이트
   useEffect(() => {
     onInsertRef.current = onInsert;
@@ -116,46 +131,36 @@ export function useRealtimeSubscription<T = any>(
     shouldIgnoreRef.current = shouldIgnore;
   }, [onInsert, onUpdate, onDelete, shouldIgnore]);
 
+  // 메인 구독 useEffect
+  // 이전 값과 비교하여 실제 변경이 있을 때만 실행
   useEffect(() => {
-    // 즉시 로그 출력 (가장 먼저)
-    console.log('[RealtimeSubscription] ⚡⚡⚡ useEffect 실행 시작:', {
-      channelName,
-      table,
-      enabled,
-      events: events.join(','),
-      timestamp: Date.now(),
-    });
-    
-    console.log('[RealtimeSubscription] ⚡ useEffect 실행 상세:', {
-      channelName,
-      table,
-      enabled,
-      events: events.join(','),
-      hasOnInsert: !!onInsert,
-      hasOnUpdate: !!onUpdate,
-      hasOnDelete: !!onDelete,
-      hasShouldIgnore: !!shouldIgnore,
-      includesDELETE: events.includes('DELETE'),
-      includesUPDATE: events.includes('UPDATE'),
-      includesINSERT: events.includes('INSERT'),
-    });
+    const prev = prevValuesRef.current;
+    const hasChanged = 
+      prev.enabled !== enabled ||
+      prev.channelName !== channelName ||
+      prev.schema !== schema ||
+      prev.table !== table ||
+      prev.filter !== filter ||
+      prev.eventsKey !== eventsKey;
 
-    if (!enabled) {
-      console.log('[RealtimeSubscription] 구독 비활성화:', { channelName, table });
+    if (!hasChanged && channelRef.current) {
+      // 값이 변경되지 않았고 이미 구독이 설정되어 있으면 실행하지 않음
       return;
     }
 
-    console.log('[RealtimeSubscription] 구독 시작:', {
+    // 이전 값 업데이트
+    prevValuesRef.current = {
+      enabled,
       channelName,
-      table,
       schema,
+      table,
       filter,
-      events: events.join(','),
-      hasOnInsert: !!onInsert,
-      hasOnUpdate: !!onUpdate,
-      hasOnDelete: !!onDelete,
-      hasShouldIgnore: !!shouldIgnore,
-    });
+      eventsKey,
+    };
+
+    if (!enabled) {
+      return;
+    }
 
     const channel = supabase.channel(channelName);
 
@@ -202,25 +207,7 @@ export function useRealtimeSubscription<T = any>(
     }
 
     // DELETE 이벤트
-    console.log('[RealtimeSubscription] 🔍 DELETE 이벤트 체크:', {
-      channelName,
-      table,
-      events: events.join(','),
-      includesDELETE: events.includes('DELETE'),
-      includesStar: events.includes('*'),
-      willRegister: events.includes('DELETE') || events.includes('*'),
-      hasOnDelete: !!onDeleteRef.current,
-    });
-    
     if (events.includes('DELETE') || events.includes('*')) {
-      console.log('[RealtimeSubscription] ✅ DELETE 이벤트 리스너 등록:', {
-        channelName,
-        table,
-        filter,
-        hasShouldIgnore: !!shouldIgnoreRef.current,
-        hasOnDelete: !!onDeleteRef.current,
-      });
-      
       channel.on(
         'postgres_changes',
         {
@@ -230,52 +217,40 @@ export function useRealtimeSubscription<T = any>(
           filter,
         },
         async (payload) => {
-          console.log('[RealtimeSubscription] DELETE 이벤트 수신:', {
-            channelName,
-            table,
-            filter,
-            payload,
-            oldId: payload.old?.id,
-            newId: payload.new?.id,
-          });
-          
-          if (shouldIgnoreRef.current?.(payload, 'DELETE')) {
-            console.log('[RealtimeSubscription] DELETE 이벤트 shouldIgnore=true, 무시됨');
+          // payload.old가 없거나 유효하지 않은 경우 에러 로그만 출력
+          if (!payload.old) {
+            console.error('[RealtimeSubscription] DELETE 이벤트: payload.old가 없습니다', payload);
             return;
           }
           
-          console.log('[RealtimeSubscription] DELETE 이벤트 처리 진행');
+          if (!payload.old.id) {
+            console.error('[RealtimeSubscription] DELETE 이벤트: payload.old.id가 없습니다', payload);
+            return;
+          }
+          
+          if (shouldIgnoreRef.current?.(payload, 'DELETE')) {
+            return;
+          }
           
           if (onDeleteRef.current) {
-            console.log('[RealtimeSubscription] DELETE 핸들러 호출 시작');
             try {
               await onDeleteRef.current(payload);
-              console.log('[RealtimeSubscription] DELETE 핸들러 호출 완료');
             } catch (error) {
               console.error('[RealtimeSubscription] DELETE 핸들러 에러:', error);
             }
-          } else {
-            console.warn('[RealtimeSubscription] DELETE 핸들러가 없습니다');
           }
         }
       );
     }
 
     channel.subscribe((status) => {
-      console.log('[RealtimeSubscription] 구독 상태:', {
-        channelName,
-        table,
-        status,
-      });
+      if (status === 'SUBSCRIBED') {
+        // 구독 성공 시에만 로그 출력 (선택적)
+      }
     });
     channelRef.current = channel;
 
     return () => {
-      console.log('[RealtimeSubscription] 🗑️ cleanup 실행:', { 
-        channelName, 
-        table,
-        timestamp: Date.now(),
-      });
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
@@ -287,7 +262,11 @@ export function useRealtimeSubscription<T = any>(
     schema,
     table,
     filter,
-    eventsString, // 메모이제이션된 문자열 사용
+    // events 배열을 안정적으로 처리
+    // eventsProp는 보통 상수 배열이므로 직접 사용
+    // 하지만 의존성 배열에서 배열을 직접 사용하면 참조가 변경될 수 있으므로
+    // eventsKey를 사용하되, eventsProp.length만 의존성으로 사용
+    eventsKey,
     // 함수들은 ref로 관리하므로 의존성 배열에서 제거
   ]);
 }

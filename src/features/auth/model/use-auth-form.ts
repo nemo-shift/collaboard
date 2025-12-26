@@ -39,7 +39,6 @@ export const useAuthForm = (): UseAuthFormReturn => {
       try {
         // TODO: 실제 인증 API 연동 시 구현
         // 예: await signUpWithEmail(formData);
-        console.log('Form submitted:', formData);
         
         // 임시: 성공 시 대시보드로 이동
         // router.push('/dashboard');

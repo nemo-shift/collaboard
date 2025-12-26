@@ -12,5 +12,8 @@ export { SignupRequiredModal } from './signup-required-modal';
 export { PrivateBoardModal } from './private-board-modal';
 export { Toast, ToastContainer } from './toast';
 export type { ToastType } from './toast';
+export { Tooltip } from './tooltip';
+export { ThemeToggle } from './theme-toggle';
+export { StatCard } from './stat-card';
 export * from './constants'; // 활성화됨 (UI 컴포넌트 상수)
 

@@ -8,6 +8,7 @@ interface InviteModalProps {
   onClose: () => void;
   inviteLink: string;
   boardName?: string;
+  isPublic?: boolean;
 }
 
 export const InviteModal = ({
@@ -15,6 +16,7 @@ export const InviteModal = ({
   onClose,
   inviteLink,
   boardName,
+  isPublic = true,
 }: InviteModalProps) => {
   const [copied, setCopied] = useState(false);
 
@@ -61,7 +63,7 @@ export const InviteModal = ({
           </p>
         )}
 
-        {inviteLink ? (
+        {isPublic && inviteLink ? (
           <>
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
