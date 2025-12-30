@@ -71,7 +71,7 @@ export const useBoardRealtimeUpdates = ({
       const boardRow = {
         id: updatedRow.id,
         name: updatedRow.name,
-        description: updatedRow.description,
+        description: updatedRow.description ?? null,
         owner_id: updatedRow.owner_id,
         created_at: updatedRow.created_at,
         updated_at: updatedRow.updated_at,

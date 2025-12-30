@@ -40,6 +40,9 @@ export const ColorPicker = ({ selectedColor = DEFAULT_POSTIT_COLOR, onColorSelec
         className="w-8 h-8 rounded-lg border-2 border-gray-400 shadow-sm hover:shadow-md transition-all flex items-center justify-center"
         style={{ backgroundColor: selectedColor }}
         title="색상 선택"
+        aria-label="색상 선택"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       />
 
       {isOpen && (
@@ -72,6 +75,8 @@ export const ColorPicker = ({ selectedColor = DEFAULT_POSTIT_COLOR, onColorSelec
                 }`}
                 style={{ backgroundColor: color.value }}
                 title={color.name}
+                aria-label={`${color.name} 색상 선택`}
+                aria-pressed={selectedColor === color.value}
               />
             ))}
           </div>

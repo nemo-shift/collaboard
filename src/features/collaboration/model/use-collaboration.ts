@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@shared/api';
 import type { CursorPosition } from '@entities/element';
 import { generateUserColor } from '@shared/lib';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseCollaborationProps {
   boardId: string;
@@ -23,7 +24,7 @@ export const useCollaboration = ({
   currentUserColor,
 }: UseCollaborationProps): UseCollaborationReturn => {
   const [cursors, setCursors] = useState<CursorPosition[]>([]);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
   const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scaleRef = useRef<number>(1);
@@ -142,15 +143,20 @@ export const useCollaboration = ({
   // (BoardCanvas에서 사용)
   useEffect(() => {
     // BoardCanvas의 scale과 offset을 감지하기 위한 커스텀 이벤트 리스너
-    const handleScaleOffsetUpdate = (e: CustomEvent<{ scale: number; offset: { x: number; y: number } }>) => {
-      scaleRef.current = e.detail.scale;
-      offsetRef.current = e.detail.offset;
+    interface BoardCanvasUpdateEvent extends CustomEvent {
+      detail: { scale: number; offset: { x: number; y: number } };
+    }
+
+    const handleScaleOffsetUpdate = (e: Event) => {
+      const customEvent = e as BoardCanvasUpdateEvent;
+      scaleRef.current = customEvent.detail.scale;
+      offsetRef.current = customEvent.detail.offset;
     };
 
-    window.addEventListener('board-canvas-update' as any, handleScaleOffsetUpdate as EventListener);
+    window.addEventListener('board-canvas-update', handleScaleOffsetUpdate as EventListener);
 
     return () => {
-      window.removeEventListener('board-canvas-update' as any, handleScaleOffsetUpdate as EventListener);
+      window.removeEventListener('board-canvas-update', handleScaleOffsetUpdate as EventListener);
     };
   }, []);
 

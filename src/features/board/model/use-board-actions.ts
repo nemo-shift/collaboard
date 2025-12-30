@@ -3,8 +3,8 @@
 import { useState, useRef } from 'react';
 
 interface UseBoardActionsReturn {
-  addMode: 'note' | 'image' | null;
-  setAddMode: (mode: 'note' | 'image' | null) => void;
+  addMode: 'note' | 'image' | 'text' | null;
+  setAddMode: (mode: 'note' | 'image' | 'text' | null) => void;
   pendingImageFile: File | null;
   setPendingImageFile: (file: File | null) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -17,7 +17,7 @@ interface UseBoardActionsReturn {
 }
 
 export const useBoardActions = (): UseBoardActionsReturn => {
-  const [addMode, setAddMode] = useState<'note' | 'image' | null>(null);
+  const [addMode, setAddMode] = useState<'note' | 'image' | 'text' | null>(null);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

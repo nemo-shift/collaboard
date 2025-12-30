@@ -28,6 +28,9 @@
   --color-primary-tint: #FFE2E2;
   --color-primary-light: #FFF0F0;
   
+  /* Light Mode Primary Action (for modals/buttons - same as primary) */
+  --color-primary-action: #FF2E2E;
+  
   /* Light Mode Secondary */
   --color-secondary-main: #5B9FFF;
   --color-secondary-hover: #4A8FE6;
@@ -69,6 +72,9 @@
   --color-primary-hover: #EDEDED;
   --color-primary-active: #D4D4D4;
   --color-primary-tint: #2A2E33;
+  
+  /* Dark Mode Primary Action (for modals/buttons - lime) */
+  --color-primary-action: #9DFF4C;
   
   /* Dark Mode Accent Lime */
   --color-accent-lime-main: #9DFF4C;

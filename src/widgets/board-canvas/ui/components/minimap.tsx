@@ -112,7 +112,8 @@ export const Minimap = ({
   if (!isExpanded) {
     return (
       <Tooltip content="미니맵 표시">
-        <div
+        <button
+          type="button"
           className={`fixed right-4 z-40 ${classes.bg} ${classes.border} rounded-full shadow-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-center`}
           style={{ 
             top: 'calc(64px + var(--board-toolbar-height, 57px))',
@@ -120,6 +121,7 @@ export const Minimap = ({
             height: '40px',
           }}
           onClick={() => setIsExpanded(true)}
+          aria-label="미니맵 표시"
         >
         <svg
           className={`w-5 h-5 text-[var(--color-text-muted)]`}
@@ -134,7 +136,7 @@ export const Minimap = ({
             d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
           />
         </svg>
-        </div>
+        </button>
       </Tooltip>
     );
   }
@@ -153,8 +155,10 @@ export const Minimap = ({
         <span className={`text-xs font-medium ${classes.textBody}`}>미니맵</span>
         <Tooltip content="미니맵 최소화">
           <button
+            type="button"
             onClick={() => setIsExpanded(false)}
             className={`p-0.5 text-[var(--color-text-muted)] hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
+            aria-label="미니맵 최소화"
           >
           <svg
             className="w-3.5 h-3.5"

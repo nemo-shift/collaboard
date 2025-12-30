@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { BoardElement } from '@entities/element';
+import type { BoardElement, TextStyle } from '@entities/element';
 // import { mockElements } from './mock-elements'; // 더미 데이터 주석 처리
 import { calculateImageSize } from '../lib/calculate-image-size';
 import { DEFAULT_NOTE_COLOR, DEFAULT_NOTE_SIZE, DEFAULT_TEXT_SIZE, REALTIME_IGNORE_TIMEOUT, REALTIME_DRAG_IGNORE_TIMEOUT } from '../lib/constants';
@@ -98,7 +98,7 @@ export const useBoardContent = ({
     (payload: { new: unknown; old: unknown }, event: RealtimeEvent) => {
       // DELETE 이벤트는 payload.old에 삭제된 행 데이터가 있음
       if (event === 'DELETE') {
-        const deletedRow = payload.old;
+        const deletedRow = payload.old as BoardElementRowWithJoins | null | undefined;
         
         if (!deletedRow || !deletedRow.id) {
           // id가 없으면 처리 (다른 사용자의 삭제일 수 있음)
@@ -143,6 +143,10 @@ export const useBoardContent = ({
       // UPDATE: 드래그 중이거나 최근 업데이트한 요소는 무시
       if (event === 'UPDATE') {
         const elementId = row.id;
+        
+        if (!elementId) {
+          return false;
+        }
         
         // 드래그 중인 요소 확인
         const dragStartTime = draggingElementsRef.current.get(elementId);
@@ -561,7 +565,7 @@ export const useBoardContent = ({
       const canEdit = isOwner || element.userId === currentUserId;
       if (!canEdit) {
         if (onPermissionDenied) {
-          onPermissionDenied();
+          onPermissionDenied('다른 사용자의 요소를 수정할 권한이 없습니다.');
         }
         return;
       }
@@ -589,14 +593,8 @@ export const useBoardContent = ({
         return;
       }
 
-      // 권한 체크
-      const element = elements.find((el) => el.id === elementId);
-      if (!element) return;
-      const canEdit = isOwner || element.userId === currentUserId;
-      if (!canEdit) {
-        onPermissionDenied?.('다른 사용자의 요소를 수정할 권한이 없습니다.');
-        return;
-      }
+      // z-index 변경은 모든 로그인 사용자가 가능 (권한 체크 제거)
+      // 익명 사용자 체크는 use-edit-guarded-handlers에서 수행됨
 
       // 최근 업데이트 추적 (Realtime 이벤트 무시용)
       recentlyUpdatedRef.current.set(elementId, Date.now());
@@ -633,7 +631,7 @@ export const useBoardContent = ({
         loadElements();
       }
     },
-    [boardId, elements, currentUserId, isOwner, onPermissionDenied]
+    [boardId, elements]
   );
 
   const handleAddImage = useCallback(

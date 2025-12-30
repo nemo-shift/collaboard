@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Button } from './button';
+import { useTheme } from '@shared/lib';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const ConfirmDialog = ({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) => {
+  const { classes } = useTheme();
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   // 모달이 열릴 때 삭제 버튼에 자동 포커스
@@ -59,9 +61,9 @@ export const ConfirmDialog = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-200">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">{title}</h3>
-        <p className="text-gray-700 mb-6 leading-relaxed">{message}</p>
+      <div className={`${classes.bgSurface} rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 ${classes.border}`}>
+        <h3 className={`text-xl font-semibold mb-4 ${classes.text}`}>{title}</h3>
+        <p className={`mb-6 leading-relaxed ${classes.textBody}`}>{message}</p>
         <div className="flex gap-3 justify-end">
           <Button
             variant="outline"

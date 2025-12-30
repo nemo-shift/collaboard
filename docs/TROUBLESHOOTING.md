@@ -10,6 +10,7 @@
 4. [Tailwind CSS v4 다크모드 적용 문제](#4-tailwind-css-v4-다크모드-적용-문제)
 5. [포맷팅된 텍스트 선택 불가 문제](#5-포맷팅된-텍스트-선택-불가-문제)
 6. [협업 위젯 초기 위치 설정 문제](#6-협업-위젯-초기-위치-설정-문제)
+7. [캔버스 패닝 기능 문제 (훅 리팩토링 후)](#7-캔버스-패닝-기능-문제-훅-리팩토링-후)
 
 ---
 
@@ -1336,6 +1337,372 @@ onMouseDown={(e) => {
 - [MDN MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver)
 - [MDN CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)
 - [React useRef 문서](https://react.dev/reference/react/useRef)
+
+---
+
+## 7. 캔버스 패닝 기능 문제 (훅 리팩토링 후)
+
+### 문제 상황
+
+**날짜**: 2025년 1월  
+**파일**: `src/widgets/board-canvas/ui/board-canvas.tsx`, `src/widgets/board-canvas/model/use-canvas-panning.ts`  
+**증상**: `board-canvas.tsx`를 커스텀 훅으로 리팩토링한 후 캔버스 패닝(panning) 기능이 작동하지 않거나 불안정하게 동작함.
+
+### 증상 상세
+
+1. **패닝이 전혀 작동하지 않음**
+   - 캔버스를 드래그해도 움직이지 않음
+   - 마우스를 놓으면 원래 위치로 돌아감
+
+2. **패닝이 간헐적으로 작동**
+   - 여러 번 시도해야 가끔 작동
+   - 마우스업 후 캔버스가 마우스에 계속 붙어서 따라다님
+
+3. **패닝 후 원래 위치로 복귀**
+   - 드래그 중에는 움직이지만 마우스업 시 원래 위치로 돌아감
+   - 잠깐 패닝된 위치로 이동했다가 다시 원래 위치로 "튀는" 현상
+
+4. **요소 추가/편집 모드 종료 불가**
+   - 캔버스 클릭으로 요소 추가 불가
+   - 빈 공간 클릭으로 편집 모드 종료 불가
+
+### 원인 분석
+
+#### 1단계: 리팩토링 구조
+
+`board-canvas.tsx`를 다음 세 개의 커스텀 훅으로 분리:
+- `useCanvasPanning`: 캔버스 패닝 로직
+- `useElementInteraction`: 요소 드래그, 리사이즈, 선택 로직
+- `useElementEditing`: 요소 편집 로직
+
+#### 2단계: 핵심 문제 발견
+
+**문제 1: 이벤트 리스너 참조 불일치**
+
+```typescript
+// 문제가 있던 코드
+const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  // ...
+  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('mouseup', handleMouseUp);
+}, [handleMouseMove, handleMouseUp]);
+```
+
+**문제점**:
+- `handleMouseMove`와 `handleMouseUp`이 `useCallback`의 의존성 변경 시 새로운 참조로 재생성됨
+- `addEventListener`로 등록한 함수와 `removeEventListener`로 제거하려는 함수가 다른 참조
+- 이벤트 리스너가 제대로 제거되지 않아 중복 등록 및 충돌 발생
+
+**해결책**: 이벤트 핸들러를 `useRef`에 저장
+
+```typescript
+const mouseMoveHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
+const mouseUpHandlerRef = useRef<(() => void) | null>(null);
+
+const handleWindowMouseMove = (e: MouseEvent) => {
+  // 패닝 로직
+};
+
+const handleWindowMouseUp = () => {
+  // 패닝 종료 로직
+};
+
+const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  // 핸들러를 ref에 저장
+  mouseMoveHandlerRef.current = handleWindowMouseMove;
+  mouseUpHandlerRef.current = handleWindowMouseUp;
+  
+  // ref를 통해 등록 (항상 같은 참조)
+  window.addEventListener('mousemove', mouseMoveHandlerRef.current);
+  window.addEventListener('mouseup', mouseUpHandlerRef.current);
+}, []);
+
+// cleanup
+useEffect(() => {
+  return () => {
+    if (mouseMoveHandlerRef.current) {
+      window.removeEventListener('mousemove', mouseMoveHandlerRef.current);
+    }
+    if (mouseUpHandlerRef.current) {
+      window.removeEventListener('mouseup', mouseUpHandlerRef.current);
+    }
+  };
+}, []);
+```
+
+**문제 2: 상태 업데이트 타이밍 문제**
+
+```typescript
+// 문제가 있던 코드
+const handleWindowMouseUp = () => {
+  setIsDragging(false); // 즉시 false로 설정
+  setOffset(finalOffset); // 상태 업데이트
+};
+
+useEffect(() => {
+  // isDragging이 false가 되면 실행되는데,
+  // offset 상태가 아직 업데이트되지 않았을 수 있음
+  if (!isDragging && canvasContainerRef.current) {
+    canvasContainerRef.current.style.transform = 
+      `translate(${offset.x}px, ${offset.y}px) scale(${scale})`;
+  }
+}, [offset, isDragging, scale]);
+```
+
+**문제점**:
+- `setIsDragging(false)`와 `setOffset(finalOffset)`가 거의 동시에 호출됨
+- `useEffect`가 실행될 때 `offset` 상태가 아직 업데이트되지 않았을 수 있음
+- 이전 `offset` 값으로 DOM을 업데이트하여 원래 위치로 돌아가는 현상 발생
+
+**해결책**: ref를 사용한 즉시 상태 접근 및 DOM 직접 조작
+
+```typescript
+const offsetRef = useRef({ x: 0, y: 0 });
+const isDraggingRef = useRef(false);
+
+const handleWindowMouseMove = (e: MouseEvent) => {
+  // ref로 즉시 업데이트 (리렌더링 없이)
+  const newOffset = calculateNewOffset(e);
+  offsetRef.current = newOffset;
+  
+  // DOM 직접 조작 (상태 업데이트 대기 없이)
+  if (canvasContainerRef.current) {
+    canvasContainerRef.current.style.transform = 
+      `translate(${newOffset.x}px, ${newOffset.y}px) scale(${scale})`;
+  }
+};
+
+const handleWindowMouseUp = () => {
+  isDraggingRef.current = false;
+  setIsDragging(false);
+  
+  // 최종 offset를 상태로 업데이트 (다른 훅에서 사용 가능하도록)
+  setOffset(offsetRef.current);
+};
+```
+
+**문제 3: 클릭과 드래그 구분 문제**
+
+```typescript
+// 문제가 있던 코드
+const handleMouseDown = (e: React.MouseEvent) => {
+  e.stopPropagation(); // 항상 이벤트 전파 차단
+  // 패닝 시작
+};
+
+const handleClick = (e: React.MouseEvent) => {
+  // 요소 추가 또는 편집 모드 종료
+};
+```
+
+**문제점**:
+- `stopPropagation`을 항상 호출하여 `onClick` 이벤트가 발생하지 않음
+- 패닝이 발생하지 않은 경우(클릭만 한 경우)에도 `onClick`이 차단됨
+
+**해결책**: `hasPanned` 상태로 실제 패닝 여부 추적
+
+```typescript
+const [hasPanned, setHasPanned] = useState(false);
+const hasPannedRef = useRef(false);
+
+const handleWindowMouseMove = (e: MouseEvent) => {
+  // 실제로 마우스가 움직였는지 확인
+  const moved = Math.abs(e.clientX - dragStart.x) > 5 || 
+                Math.abs(e.clientY - dragStart.y) > 5;
+  
+  if (moved) {
+    hasPannedRef.current = true;
+    setHasPanned(true);
+    // 패닝 로직
+  }
+};
+
+const handleWindowMouseUp = () => {
+  const didPan = hasPannedRef.current;
+  
+  // 패닝이 발생했으면 onClick 차단
+  if (didPan) {
+    setTimeout(() => {
+      hasPannedRef.current = false;
+      setHasPanned(false);
+    }, 0);
+  } else {
+    // 패닝이 발생하지 않았으면 즉시 초기화 (onClick 허용)
+    hasPannedRef.current = false;
+    setHasPanned(false);
+  }
+};
+
+// board-canvas.tsx
+onClick={(e) => {
+  if (panning.hasPanned) {
+    // 패닝이 발생했으면 클릭 무시
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  // 패닝이 발생하지 않았으면 클릭 처리 (요소 추가 등)
+  handleClick(e);
+}}
+```
+
+**문제 4: 순환 참조 문제**
+
+```typescript
+// 문제가 있던 코드
+const panning = useCanvasPanning({
+  // ...
+  draggedElementRef: interaction.draggedElementRef, // interaction이 아직 생성되지 않음
+});
+
+const interaction = useElementInteraction({
+  // ...
+  offsetRef: panning.offsetRef, // panning이 이미 생성됨
+});
+```
+
+**문제점**:
+- `panning` 훅이 `interaction`의 ref를 필요로 함
+- `interaction` 훅이 `panning`의 ref를 필요로 함
+- 순환 참조로 인해 한쪽이 `undefined`가 됨
+
+**해결책**: Getter 함수 패턴 사용
+
+```typescript
+// board-canvas.tsx
+const interactionRefsRef = useRef<{
+  draggedElementRef?: RefObject<string | null>;
+  resizingElementRef?: RefObject<string | null>;
+}>({});
+
+const panning = useCanvasPanning({
+  // getter 함수로 전달 (나중에 호출됨)
+  getDraggedElementRef: () => interactionRefsRef.current.draggedElementRef,
+  getResizingElementRef: () => interactionRefsRef.current.resizingElementRef,
+});
+
+const interaction = useElementInteraction({
+  // ...
+});
+
+// interaction 생성 후 ref 저장
+useEffect(() => {
+  interactionRefsRef.current = {
+    draggedElementRef: interaction.draggedElementRef,
+    resizingElementRef: interaction.resizingElementRef,
+  };
+}, [interaction.draggedElementRef, interaction.resizingElementRef]);
+```
+
+### 시행착오 과정
+
+#### 시도 1: 이벤트 리스너를 useEffect로 관리
+
+```typescript
+useEffect(() => {
+  if (isDragging) {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }
+}, [isDragging, handleMouseMove, handleMouseUp]);
+```
+
+**결과**: 실패 - `isDragging` 상태 업데이트가 비동기적이라 이벤트 리스너 등록이 늦음
+
+#### 시도 2: stopPropagation 제거
+
+```typescript
+const handleMouseDown = (e: React.MouseEvent) => {
+  // stopPropagation 제거
+  // 패닝 시작
+};
+```
+
+**결과**: 부분 성공 - 클릭은 작동하지만 패닝과 클릭이 동시에 발생하는 문제
+
+#### 시도 3: hasPanned 상태 도입
+
+```typescript
+const [hasPanned, setHasPanned] = useState(false);
+```
+
+**결과**: 성공 - 클릭과 드래그를 정확히 구분 가능
+
+### 최종 해결 방법
+
+#### 1. 이벤트 핸들러를 ref에 저장
+
+- `mouseMoveHandlerRef`, `mouseUpHandlerRef` 사용
+- 항상 같은 참조로 이벤트 리스너 등록/제거
+- `handleMouseDown`에서 직접 window 이벤트 리스너 등록
+
+#### 2. ref와 state 병행 사용
+
+- `offsetRef`: 실시간 위치 추적 (리렌더링 없이)
+- `offset` state: 다른 훅에서 사용 가능하도록 상태로 관리
+- `isDraggingRef`: 즉시 확인 가능한 패닝 상태
+
+#### 3. DOM 직접 조작
+
+- 패닝 중에는 `handleWindowMouseMove`에서 직접 DOM 조작
+- 상태 업데이트는 패닝 종료 시에만 수행
+- `useEffect`에서 `!isDraggingRef.current` 체크로 중복 업데이트 방지
+
+#### 4. hasPanned 상태로 클릭/드래그 구분
+
+- 실제로 패닝이 발생했는지 추적
+- 패닝이 발생하지 않았으면 `onClick` 허용
+- `hasPannedRef`와 `hasPanned` state 병행 사용
+
+#### 5. Getter 함수 패턴
+
+- 순환 참조 문제 해결
+- `interactionRefsRef`로 중간 저장소 생성
+- `useEffect`로 생성 후 연결
+
+### 교훈
+
+1. **이벤트 리스너 참조 관리**
+   - `useCallback`의 의존성 변경 시 함수 참조가 변경됨
+   - `addEventListener`/`removeEventListener`는 같은 참조가 필요
+   - `useRef`로 함수 참조를 고정하여 해결
+
+2. **상태 업데이트 타이밍**
+   - React 상태 업데이트는 비동기적
+   - 실시간 업데이트가 필요한 경우 ref 사용
+   - DOM 직접 조작과 상태 업데이트를 적절히 분리
+
+3. **클릭과 드래그 구분**
+   - `mousedown` → `mousemove` → `mouseup` 순서로 이벤트 발생
+   - `mousemove`가 발생했는지로 드래그 여부 판단
+   - `hasPanned` 상태로 실제 패닝 발생 여부 추적
+
+4. **순환 참조 해결**
+   - Getter 함수 패턴 사용
+   - `useRef`로 중간 저장소 생성
+   - `useEffect`로 생성 후 연결
+
+5. **타입 안정성**
+   - `RefObject<HTMLDivElement | null>` 타입 사용
+   - null 체크 필수
+   - 타입 단언 최소화
+
+### 관련 파일
+
+- `src/widgets/board-canvas/ui/board-canvas.tsx` - 보드 캔버스 컴포넌트
+- `src/widgets/board-canvas/model/use-canvas-panning.ts` - 캔버스 패닝 훅
+- `src/widgets/board-canvas/model/use-element-interaction.ts` - 요소 상호작용 훅
+- `src/widgets/board-canvas/model/use-element-editing.ts` - 요소 편집 훅
+
+### 참고 자료
+
+- [React useRef 문서](https://react.dev/reference/react/useRef)
+- [MDN addEventListener](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener)
+- [React 이벤트 처리](https://react.dev/learn/responding-to-events)
 
 ---
 

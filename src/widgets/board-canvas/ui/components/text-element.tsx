@@ -199,6 +199,14 @@ const TextElementComponent = ({
     }
   }, [isEditing]);
 
+  // 편집 완료 핵심 로직 (공통 사용)
+  const completeEdit = () => {
+    const htmlContent = contentEditableRef.current?.innerHTML || '';
+    onEditContentChange(htmlContent);
+    // 스타일은 툴바에서 onStyleChange로 실시간 업데이트되므로 여기서는 저장하지 않음
+    onEditComplete();
+  };
+
   // 편집 완료 시 스타일 저장
   const handleBlur = (e: React.FocusEvent) => {
     // 클릭 중이면 blur 무시 (클릭 후 포커스가 다시 돌아올 수 있음)
@@ -209,13 +217,8 @@ const TextElementComponent = ({
         if (isClickingRef.current) {
           isClickingRef.current = false;
           
-          // blur를 다시 처리하기 위해 handleBlur를 재귀 호출
-          // 하지만 무한 루프 방지를 위해 isClickingRef를 false로 설정한 후 처리
-          const htmlContent = contentEditableRef.current?.innerHTML || '';
-          onEditContentChange(htmlContent);
-          
-          // 스타일은 툴바에서 onStyleChange로 실시간 업데이트되므로 여기서는 저장하지 않음
-          onEditComplete();
+          // 편집 완료 처리
+          completeEdit();
         } else {
           // 포커스를 다시 설정
           if (contentEditableRef.current) {
@@ -228,7 +231,7 @@ const TextElementComponent = ({
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current);
       }
-      blurTimeoutRef.current = timeoutId as any;
+      blurTimeoutRef.current = timeoutId;
       
       return;
     }
@@ -337,7 +340,7 @@ const TextElementComponent = ({
       style={{
         width: 'fit-content',
         minWidth: '50px',
-        maxWidth: '80vw', // 뷰포트 너비의 80%로 최대 너비 제한
+        maxWidth: '800px', // 최대 너비 제한 (고정값)
         cursor: isEditing ? 'text' : 'move',
       }}
       onMouseDown={(e) => {
@@ -387,7 +390,8 @@ const TextElementComponent = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                handleBlur(e as any);
+                // Cmd/Ctrl+Enter로 편집 완료
+                completeEdit();
               }
             }}
             onClick={(e) => {
@@ -454,7 +458,7 @@ const TextElementComponent = ({
               lineHeight: 1.2,
               minWidth: '50px',
               width: 'auto',
-              maxWidth: '80vw', // 뷰포트 너비의 80%로 최대 너비 제한
+              maxWidth: '800px', // 최대 너비 제한 (고정값)
               marginTop: '8px', // 툴바와의 간격 확보
             }}
             suppressContentEditableWarning
@@ -537,6 +541,21 @@ const TextElementComponent = ({
   );
 };
 
+// TextStyle 깊은 비교 함수
+const areTextStylesEqual = (a: TextStyle | undefined, b: TextStyle | undefined): boolean => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.fontSize === b.fontSize &&
+    a.fontWeight === b.fontWeight &&
+    a.fontStyle === b.fontStyle &&
+    a.textDecoration === b.textDecoration &&
+    a.color === b.color &&
+    a.backgroundColor === b.backgroundColor &&
+    a.heading === b.heading
+  );
+};
+
 export const TextElement = React.memo(TextElementComponent, (prevProps, nextProps) => {
   return (
     prevProps.element.id === nextProps.element.id &&
@@ -545,7 +564,7 @@ export const TextElement = React.memo(TextElementComponent, (prevProps, nextProp
     prevProps.element.position.y === nextProps.element.position.y &&
     prevProps.element.size.width === nextProps.element.size.width &&
     prevProps.element.size.height === nextProps.element.size.height &&
-    JSON.stringify(prevProps.element.textStyle) === JSON.stringify(nextProps.element.textStyle) &&
+    areTextStylesEqual(prevProps.element.textStyle, nextProps.element.textStyle) &&
     prevProps.isEditing === nextProps.isEditing &&
     prevProps.editContent === nextProps.editContent &&
     prevProps.isSelected === nextProps.isSelected &&

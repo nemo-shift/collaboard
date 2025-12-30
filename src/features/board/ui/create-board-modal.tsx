@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button, Input } from '@shared/ui';
+import { useTheme } from '@shared/lib';
 
 interface CreateBoardModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const CreateBoardModal = ({
   onSubmit,
   isLoading = false,
 }: CreateBoardModalProps) => {
+  const { classes } = useTheme();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true); // 기본값: 공개
@@ -58,13 +60,15 @@ export const CreateBoardModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-200">
+      <div className={`${classes.bgSurface} rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 ${classes.border}`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">새 보드 만들기</h2>
+          <h2 className={`text-2xl font-bold ${classes.text}`}>새 보드 만들기</h2>
           <button
+            type="button"
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`${classes.textMuted} hover:${classes.text} transition-colors`}
             disabled={isLoading}
+            aria-label="모달 닫기"
           >
             <svg
               className="w-6 h-6"
@@ -83,8 +87,8 @@ export const CreateBoardModal = ({
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
@@ -105,7 +109,7 @@ export const CreateBoardModal = ({
           </div>
 
           <div>
-            <label htmlFor="board-description" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="board-description" className={`block text-sm font-medium mb-2 ${classes.textBody}`}>
               보드 설명 (선택)
             </label>
             <textarea
@@ -116,7 +120,7 @@ export const CreateBoardModal = ({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               disabled={isLoading}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all disabled:bg-gray-50 disabled:cursor-not-allowed resize-none"
+              className={`w-full px-4 py-2.5 ${classes.border} rounded-lg ${classes.bgSurfaceSubtle} ${classes.textBody} focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] focus:border-[var(--color-border-focus)] transition-all disabled:cursor-not-allowed resize-none`}
             />
           </div>
 
@@ -128,9 +132,9 @@ export const CreateBoardModal = ({
               checked={!isPublic}
               onChange={(e) => setIsPublic(!e.target.checked)}
               disabled={isLoading}
-              className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900 focus:ring-2"
+              className={`w-4 h-4 ${classes.text} ${classes.border} rounded focus:ring-[var(--color-primary-main)] focus:ring-2`}
             />
-            <label htmlFor="board-private" className="text-sm text-gray-700 cursor-pointer">
+            <label htmlFor="board-private" className={`text-sm cursor-pointer ${classes.textBody}`}>
               비공개 보드로 만들기
             </label>
           </div>

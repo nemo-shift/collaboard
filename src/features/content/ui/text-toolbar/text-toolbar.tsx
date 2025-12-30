@@ -122,6 +122,7 @@ export const TextToolbar = memo<TextToolbarProps>(({
                 onDelete();
               }}
               className={`px-2 py-1 rounded text-sm transition-colors ${classes.bgHover} ${classes.textBody} hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 outline-none focus:outline-none`}
+              aria-label="텍스트 요소 삭제"
             >
               <svg
                 className="w-4 h-4"

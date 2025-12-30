@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from './button';
+import { useTheme } from '@shared/lib';
 
 interface PrivateBoardModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export const PrivateBoardModal = ({
   boardName,
   isAuthenticated = false,
 }: PrivateBoardModalProps) => {
+  const { classes } = useTheme();
   const router = useRouter();
 
   if (!isOpen) return null;
@@ -30,12 +32,14 @@ export const PrivateBoardModal = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-200">
+      <div className={`${classes.bgSurface} rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 ${classes.border}`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">비공개 보드</h2>
+          <h2 className={`text-2xl font-bold ${classes.text}`}>비공개 보드</h2>
           <button
+            type="button"
             onClick={handleNavigate}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className={`${classes.textMuted} hover:${classes.text} transition-colors`}
+            aria-label="모달 닫기"
           >
             <svg
               className="w-6 h-6"
@@ -53,7 +57,7 @@ export const PrivateBoardModal = ({
           </button>
         </div>
 
-        <p className="text-gray-600 mb-6">
+        <p className={`mb-6 ${classes.textBody}`}>
           {boardName && (
             <span className="font-semibold">{boardName}</span>
           )}

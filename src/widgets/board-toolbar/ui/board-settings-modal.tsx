@@ -63,9 +63,11 @@ export const BoardSettingsModal = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className={`text-2xl font-bold ${classes.text}`}>보드 설정</h2>
           <button
+            type="button"
             onClick={handleCancel}
             className={`${classes.textMuted} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
             disabled={isSaving || isLoading}
+            aria-label="모달 닫기"
           >
             <svg
               className="w-6 h-6"

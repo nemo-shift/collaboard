@@ -33,6 +33,16 @@ export async function createBoard(data: {
     inviteCode = generateInviteCode();
   }
 
+  // 소유자 정보 조회 (users 테이블에서) - 먼저 조회하여 ownerName 계산
+  const ownerProfiles = await getUserProfiles([data.ownerId]);
+  const ownerProfile = ownerProfiles[0];
+
+  // 현재 사용자 정보 (자신의 보드는 "나"로 표시)
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+  const ownerName = currentUser?.id === data.ownerId
+    ? '나'
+    : (ownerProfile?.displayName || ownerProfile?.email?.split('@')[0] || undefined);
+
   // invite_code가 있는 경우에만 포함 (마이그레이션 전 호환성)
   const insertData: Record<string, unknown> = {
     name: data.name,
@@ -79,16 +89,6 @@ export async function createBoard(data: {
     }
     throw new Error(error.message);
   }
-
-  // 소유자 정보 조회 (users 테이블에서)
-  const ownerProfiles = await getUserProfiles([data.ownerId]);
-  const ownerProfile = ownerProfiles[0];
-
-  // 현재 사용자 정보 (자신의 보드는 "나"로 표시)
-  const { data: { user: currentUser } } = await supabase.auth.getUser();
-  const ownerName = currentUser?.id === data.ownerId
-    ? '나'
-    : (ownerProfile?.displayName || ownerProfile?.email?.split('@')[0] || undefined);
 
   // 기본값으로 변환
   return mapBoardRowToBoard({

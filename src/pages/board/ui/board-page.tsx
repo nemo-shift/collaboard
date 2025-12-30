@@ -197,8 +197,8 @@ export const BoardPage = () => {
     onPermissionDenied: () => setIsSignupModalOpen(true),
   });
 
-  // 포스트잇/이미지 추가 모드 변경 (권한 체크 포함)
-  const handleAddModeChange = useCallback((mode: 'note' | 'image' | null) => {
+  // 포스트잇/이미지/텍스트 추가 모드 변경 (권한 체크 포함)
+  const handleAddModeChange = useCallback((mode: 'note' | 'image' | 'text' | null) => {
     if (mode && !checkCanEdit()) {
       return;
     }
@@ -247,7 +247,7 @@ export const BoardPage = () => {
         <CollaborationWidget
           cursors={cursors}
           currentUserId={currentUser.userId}
-          currentUserName={currentUser.userName}
+          currentUserName={currentUser.userName ?? undefined}
         />
         )}
 
@@ -276,7 +276,7 @@ export const BoardPage = () => {
 
       {/* 추가 모드 안내 */}
       {addMode && (
-        <div className={`absolute bottom-4 left-4 ${classes.bg} ${classes.border} rounded-lg shadow-lg px-4 py-2 text-sm ${classes.textSecondary}`}>
+        <div className={`absolute bottom-4 left-4 ${classes.bg} ${classes.border} rounded-lg shadow-lg px-4 py-2 text-sm ${classes.textMuted}`}>
           {addMode === 'note'
             ? '캔버스를 클릭하여 포스트잇을 추가하세요'
             : '이미지를 선택한 후 캔버스를 클릭하세요'}

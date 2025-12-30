@@ -18,7 +18,7 @@ interface UseEditableFieldReturn {
   setEditedValue: (value: string) => void;
   handleSave: () => Promise<void>;
   handleCancel: () => void;
-  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>;
+  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
 }
 
 /**

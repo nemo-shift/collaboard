@@ -21,8 +21,15 @@
 /build
 
 # misc
-.DS_Store
 *.pem
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
 
 # debug
 npm-debug.log*
@@ -40,6 +47,28 @@ yarn-error.log*
 # cursor
 .cursor/
 
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Supabase local development
+supabase/.branches
+supabase/.temp
+supabase/.seed
+
+# cache
+.cache/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# temporary files
+*.tmp
+*.temp
+*.log

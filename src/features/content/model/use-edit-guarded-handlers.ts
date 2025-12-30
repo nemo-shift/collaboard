@@ -45,14 +45,16 @@ export const useEditGuardedHandlers = ({
   onPermissionDenied,
 }: UseEditGuardedHandlersProps): UseEditGuardedHandlersReturn => {
   const guardedHandlers = useMemo(() => {
-    const guard = <T extends (...args: unknown[]) => unknown>(fn: T): T => {
-      return ((...args: unknown[]) => {
+    const guard = <Args extends unknown[], Return>(
+      fn: (...args: Args) => Return
+    ): ((...args: Args) => Return | undefined) => {
+      return ((...args: Args) => {
         if (!checkCanEdit()) {
           onPermissionDenied?.();
-          return;
+          return undefined;
         }
         return fn(...args);
-      }) as T;
+      });
     };
 
     return {

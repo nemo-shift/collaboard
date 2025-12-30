@@ -2,6 +2,8 @@
 
 아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드
 
+> **최신 업데이트**: 2025년 1월 - 코드 최적화 및 타입 안정성 개선 완료
+
 ## 주요 기능
 
 - ✅ **실시간 협업**: 여러 사용자가 동시에 작업하고 변경사항이 즉시 반영
@@ -18,11 +20,27 @@
 ## 기술 스택
 
 - **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
+- **Language**: TypeScript (strict mode)
 - **Styling**: TailwindCSS v4
 - **State Management**: Zustand
 - **Backend**: Supabase (Auth, PostgreSQL, Realtime, Storage)
 - **Architecture**: Feature-Sliced Design (FSD)
+
+## 최근 업데이트 (2025년 1월)
+
+### 코드 최적화
+- ✅ **커스텀 훅 리팩토링**: `board-canvas.tsx`를 세 개의 훅으로 분리
+  - `useCanvasPanning`: 캔버스 패닝 로직
+  - `useElementInteraction`: 요소 드래그, 리사이즈, 선택 로직
+  - `useElementEditing`: 요소 편집 로직
+- ✅ **타입 안정성 개선**: 모든 `any` 타입 제거, 엄격한 타입 체크
+- ✅ **성능 최적화**: `React.memo`, `useMemo`, `useCallback` 적절히 사용
+- ✅ **빌드 최적화**: Next.js 컴파일러 최적화 설정 추가
+
+### 주요 버그 수정
+- ✅ **캔버스 패닝 문제 해결**: 훅 리팩토링 후 발생한 패닝 이슈 해결
+- ✅ **타입 오류 수정**: 빌드 시 발생하던 모든 타입 오류 해결
+- ✅ **인증 에러 메시지 한국어 번역**: 사용자 친화적인 에러 메시지 제공
 
 ## 프로젝트 구조
 
@@ -144,6 +162,11 @@ npm run build
 npm start
 ```
 
+**빌드 최적화**:
+- 프로덕션 빌드에서 `console.log` 자동 제거 (에러/경고 제외)
+- Supabase 패키지 최적화 (`optimizePackageImports`)
+- TypeScript 타입 체크 포함
+
 ### 코드 품질 체크
 
 ```bash
@@ -199,5 +222,11 @@ npm run lint
 rm -rf .next
 npm run build
 ```
+
+**주요 빌드 에러 해결**:
+- 타입 오류: TypeScript strict mode로 인한 타입 체크 실패
+  - 해결: 모든 타입을 명시적으로 지정, `any` 타입 제거
+- 환경 변수 누락: Supabase 설정이 없을 때 빌드 실패
+  - 해결: `.env.local` 파일에 필수 환경 변수 추가
 
 자세한 문제 해결 방법은 [트러블슈팅 문서](./docs/TROUBLESHOOTING.md)를 참고하세요.

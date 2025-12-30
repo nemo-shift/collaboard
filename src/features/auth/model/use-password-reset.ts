@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { resetPasswordForEmail, updatePassword } from '@features/auth/api';
 import { validatePassword, checkPasswordMatch } from '@features/auth/lib';
-import { logger } from '@shared/lib';
+import { logger, translateAuthError } from '@shared/lib';
 
 interface UsePasswordResetReturn {
   // 재설정 요청
@@ -54,7 +54,10 @@ export const usePasswordReset = (): UsePasswordResetReturn => {
         setRequestSuccess(true);
         setEmail(''); // 성공 시 이메일 초기화
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '비밀번호 재설정 요청에 실패했습니다.';
+        let errorMessage = '비밀번호 재설정 요청에 실패했습니다.';
+        if (err instanceof Error) {
+          errorMessage = translateAuthError(err.message);
+        }
         setRequestError(errorMessage);
         logger.error('Password reset request error:', err);
       } finally {
@@ -89,7 +92,10 @@ export const usePasswordReset = (): UsePasswordResetReturn => {
         // 성공 시 로그인 페이지로 이동
         router.push('/auth?reset=success');
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '비밀번호 변경에 실패했습니다.';
+        let errorMessage = '비밀번호 변경에 실패했습니다.';
+        if (err instanceof Error) {
+          errorMessage = translateAuthError(err.message);
+        }
         setUpdateError(errorMessage);
         logger.error('Password update error:', err);
       } finally {

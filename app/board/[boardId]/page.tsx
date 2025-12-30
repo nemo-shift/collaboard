@@ -12,6 +12,13 @@ export async function generateMetadata({
   try {
     const board = await getBoard(boardId);
     
+    if (!board) {
+      return {
+        title: '보드 - CollaBoard',
+        description: '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
+      };
+    }
+    
     return {
       title: `${board.name} - CollaBoard`,
       description: board.description || '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
