@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@shared/api';
+import { logger } from '@shared/lib';
 import type { Board } from '@entities/board';
 import { mapBoardRowToBoard, type BoardRowWithJoins } from '@entities/board/lib/board-mapper';
 import { getUserProfiles } from '@features/auth/api';
@@ -33,7 +34,7 @@ export async function createBoard(data: {
   }
 
   // invite_code가 있는 경우에만 포함 (마이그레이션 전 호환성)
-  const insertData: any = {
+  const insertData: Record<string, unknown> = {
     name: data.name,
     description: data.description || null,
     owner_id: data.ownerId,
@@ -157,15 +158,16 @@ export async function getBoard(boardId: string, userId?: string): Promise<Board 
           // isStarred, isPinned는 기본값 false 유지
         } else {
           // 다른 에러는 경고만 출력
-          console.warn('Failed to fetch user preferences:', prefError);
+          logger.warn('Failed to fetch user preferences:', prefError);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 네트워크 에러나 기타 예외 처리
-      if (error?.message?.includes('406') || error?.code === 'PGRST301') {
+      const err = error as { message?: string; code?: string };
+      if (err?.message?.includes('406') || err?.code === 'PGRST301') {
         // 406 에러는 선호도가 없는 경우로 처리
       } else {
-        console.warn('Failed to fetch user preferences:', error);
+        logger.warn('Failed to fetch user preferences:', error);
       }
     }
   }
@@ -198,7 +200,7 @@ export async function getBoards(userId?: string): Promise<Board[]> {
       .eq('owner_id', userId);
 
     if (ownedError) {
-      console.error('[getBoards] 소유한 보드 조회 실패:', ownedError);
+      logger.error('[getBoards] 소유한 보드 조회 실패:', ownedError);
       throw new Error(`소유한 보드 조회 실패: ${ownedError.message}`);
     }
 
@@ -213,7 +215,7 @@ export async function getBoards(userId?: string): Promise<Board[]> {
       if (participatedError.code === 'PGRST116' || participatedError.code === 'PGRST301') {
         // 참여한 보드가 없는 경우 - 빈 배열로 처리
       } else {
-        console.error('[getBoards] 참여한 보드 조회 실패:', participatedError);
+        logger.error('[getBoards] 참여한 보드 조회 실패:', participatedError);
         throw new Error(`참여한 보드 조회 실패: ${participatedError.message}`);
       }
     }
@@ -235,7 +237,7 @@ export async function getBoards(userId?: string): Promise<Board[]> {
       .order('updated_at', { ascending: false });
 
     if (boardsError) {
-      console.error('[getBoards] 보드 데이터 조회 실패:', boardsError);
+      logger.error('[getBoards] 보드 데이터 조회 실패:', boardsError);
       // 네트워크 에러인 경우 더 명확한 메시지
       if (boardsError.message?.includes('fetch') || boardsError.message?.includes('network')) {
         throw new Error('네트워크 연결을 확인해주세요. Supabase 서버에 연결할 수 없습니다.');
@@ -256,7 +258,7 @@ export async function getBoards(userId?: string): Promise<Board[]> {
       .in('board_id', boardIds);
 
     if (countError) {
-      console.error('[getBoards] 요소 개수 조회 실패:', countError);
+      logger.error('[getBoards] 요소 개수 조회 실패:', countError);
       // 요소 개수 조회 실패는 치명적이지 않으므로 빈 맵으로 처리
     }
 
@@ -292,12 +294,13 @@ export async function getBoards(userId?: string): Promise<Board[]> {
           return acc;
         }, {} as Record<string, { is_starred: boolean; is_pinned: boolean }>);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 네트워크 에러나 기타 예외 처리
-      if (error?.message?.includes('406') || error?.code === 'PGRST301') {
+      const err = error as { message?: string; code?: string };
+      if (err?.message?.includes('406') || err?.code === 'PGRST301') {
         // 406 에러는 선호도가 없는 경우로 처리
       } else {
-        console.warn('Failed to fetch user preferences:', error);
+        logger.warn('Failed to fetch user preferences:', error);
       }
     }
   }
@@ -313,7 +316,7 @@ export async function getBoards(userId?: string): Promise<Board[]> {
         .order('updated_at', { ascending: false });
 
       if (activityError) {
-        console.error('[getBoards] 활동 조회 실패:', activityError);
+        logger.error('[getBoards] 활동 조회 실패:', activityError);
         // 활동 조회 실패는 치명적이지 않으므로 빈 맵으로 처리
       } else {
         // 각 보드별 최신 활동만 추출
@@ -366,10 +369,11 @@ export async function getBoards(userId?: string): Promise<Board[]> {
 
       return mapBoardRowToBoard(boardRow);
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 네트워크 에러나 기타 예외 처리
-    console.error('[getBoards] 전체 에러:', error);
-    if (error?.message?.includes('fetch') || error?.message?.includes('network') || error?.message?.includes('Failed to fetch')) {
+    logger.error('[getBoards] 전체 에러:', error);
+    const err = error as { message?: string };
+    if (err?.message?.includes('fetch') || err?.message?.includes('network') || err?.message?.includes('Failed to fetch')) {
       throw new Error('네트워크 연결을 확인해주세요. Supabase 서버에 연결할 수 없습니다.');
     }
     // 이미 처리된 에러는 그대로 throw
@@ -388,7 +392,7 @@ export async function updateBoard(
     isPublic?: boolean;
   }
 ): Promise<Board> {
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (updates.name !== undefined) updateData.name = updates.name;
   if (updates.description !== undefined) updateData.description = updates.description || null;
   
@@ -509,12 +513,13 @@ export async function getBoardByInviteCode(inviteCode: string): Promise<Board | 
     };
 
     return mapBoardRowToBoard(boardRow);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 네트워크 에러나 기타 예외 처리
     // 406 에러나 RLS 정책 위반의 경우 null 반환
-    if (error?.message?.includes('406') || 
-        error?.message?.includes('Not Acceptable') ||
-        error?.code === 'PGRST301') {
+    const err = error as { message?: string; code?: string };
+    if (err?.message?.includes('406') || 
+        err?.message?.includes('Not Acceptable') ||
+        err?.code === 'PGRST301') {
       return null;
     }
     // 다른 에러는 재throw

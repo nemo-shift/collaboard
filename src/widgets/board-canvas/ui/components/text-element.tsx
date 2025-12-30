@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import type { BoardElement, TextStyle } from '@entities/element';
 import { useTheme } from '@shared/lib';
 import { formatUserName } from '@shared/lib';
-import { useFormattedTextInteraction, TextToolbar } from '@features/content';
+import { TextToolbar } from '@features/content';
+import { ZIndexButtonGroup } from './z-index-buttons';
 
 interface TextElementProps {
   element: BoardElement;
@@ -22,13 +23,15 @@ interface TextElementProps {
   contentEditableRef: React.RefObject<HTMLDivElement | null>;
   onDoubleClick?: (e: React.MouseEvent) => void;
   onSelect?: (elementId: string) => void;
+  onBringForward?: () => void;
+  onSendBackward?: () => void;
 }
 
 /**
  * 텍스트 요소 컴포넌트
  * 리치 텍스트 에디터 기능 포함 (굵게, 기울임, 밑줄, 취소선, 크기/헤딩, 색상/하이라이트)
  */
-export const TextElement = ({
+const TextElementComponent = ({
   element,
   isEditing,
   editContent,
@@ -44,7 +47,10 @@ export const TextElement = ({
   contentEditableRef,
   onDoubleClick,
   onSelect,
+  onBringForward,
+  onSendBackward,
 }: TextElementProps) => {
+
   const { classes, isDark } = useTheme();
   const [showToolbar, setShowToolbar] = useState(false);
   const isComposingRef = useRef(false); // 한글 IME 조합 중인지 추적
@@ -61,51 +67,49 @@ export const TextElement = ({
   const fontWeight = textStyle.fontWeight || 'normal';
   const fontStyle = textStyle.fontStyle || 'normal';
   const textDecoration = textStyle.textDecoration || 'none';
-  const color = textStyle.color || element.color || defaultColor;
-  const backgroundColor = textStyle.backgroundColor || 'transparent';
-  const heading = textStyle.heading || 'p';
   
-  // 포맷팅된 텍스트 상호작용 처리 훅
-  const displayContentRef = useFormattedTextInteraction({
-    isEditing,
-    elementId: element.id,
-    onSelect,
-    onDoubleClick: onDoubleClick ? (e: MouseEvent) => {
-      // React.MouseEvent로 변환하여 전달
-      const reactEvent = e as unknown as React.MouseEvent;
-      onDoubleClick(reactEvent);
-    } : undefined,
-    toolbarSelector: '[data-text-toolbar]',
-  });
-
-  // data 속성만 관리하는 얇은 effect
-  // useFormattedTextInteraction 훅이 캡처 단계에서 이벤트를 처리하므로
-  // data 속성만 관리 (pointer-events 조작 제거)
-  useEffect(() => {
-    const elementId = element.id;
-    const dataAttr = `data-formatted-text-${elementId}`;
-    const editableDataAttr = `data-contenteditable-${elementId}`;
-
-    // 비편집 모드: displayContentRef에 data 속성 추가
-    if (!isEditing && displayContentRef.current) {
-      displayContentRef.current.setAttribute(dataAttr, '');
+  // 텍스트 색상 결정 (다크모드에서 검정색 계열이면 자동으로 밝은 색상으로 변경)
+  const getTextColor = (): string => {
+    const rawColor = textStyle.color || element.color;
+    
+    // 색상이 없으면 기본 색상 사용
+    if (!rawColor) {
+      return defaultColor;
     }
-
-    // 편집 모드: contentEditable에 data 속성 추가
-    if (isEditing && contentEditableRef.current) {
-      contentEditableRef.current.setAttribute(editableDataAttr, '');
+    
+    // 다크모드가 아니면 원래 색상 사용
+    if (!isDark) {
+      return rawColor;
     }
-
-    // cleanup: data 속성 제거
-    return () => {
-      if (displayContentRef.current) {
-        displayContentRef.current.removeAttribute(dataAttr);
-      }
-      if (contentEditableRef.current) {
-        contentEditableRef.current.removeAttribute(editableDataAttr);
-      }
-    };
-  }, [isEditing, element.id, displayContentRef, contentEditableRef]);
+    
+    // 다크모드에서 색상이 어두운지 판단
+    const hex = rawColor.replace('#', '');
+    if (hex.length !== 6) {
+      return defaultColor; // 잘못된 형식이면 기본 색상
+    }
+    
+    // RGB 값 추출
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    
+    // 밝기 계산 (0~255, 128 미만이면 어두운 색상)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    
+    // 어두운 색상이면 밝은 색상으로 변경
+    if (brightness < 128) {
+      return defaultColor;
+    }
+    
+    // 밝은 색상이면 원래 색상 사용
+    return rawColor;
+  };
+  
+  const color = getTextColor();
+  const backgroundColor = textStyle.backgroundColor || 'transparent';
+  
+  // displayContentRef를 단순 useRef로 변경
+  const displayContentRef = useRef<HTMLDivElement | null>(null);
 
   // 편집 모드 진입 시 포커스 및 초기 내용 설정
   useEffect(() => {
@@ -188,6 +192,12 @@ export const TextElement = ({
     }
   }, [isEditing, contentEditableRef, editContent]);
 
+  // 편집 모드가 종료되면 툴바 숨기기
+  useEffect(() => {
+    if (!isEditing) {
+      setShowToolbar(false);
+    }
+  }, [isEditing]);
 
   // 편집 완료 시 스타일 저장
   const handleBlur = (e: React.FocusEvent) => {
@@ -275,6 +285,9 @@ export const TextElement = ({
       const htmlContent = contentEditableRef.current?.innerHTML || '';
       onEditContentChange(htmlContent);
       
+      // 툴바 숨기기
+      setShowToolbar(false);
+      
       // 스타일은 툴바에서 onStyleChange로 실시간 업데이트되므로 여기서는 저장하지 않음
       // 편집 완료 처리 - 항상 호출되도록 보장
       onEditComplete();
@@ -316,21 +329,7 @@ export const TextElement = ({
     element.normalize();
   };
 
-  // 헤딩에 따른 기본 폰트 크기
-  const getHeadingSize = (h: string): number => {
-    const sizes: Record<string, number> = {
-      h1: 32,
-      h2: 28,
-      h3: 24,
-      h4: 20,
-      h5: 18,
-      h6: 16,
-      p: fontSize,
-    };
-    return sizes[h] || fontSize;
-  };
-
-  const displayFontSize = heading !== 'p' ? getHeadingSize(heading) : fontSize;
+  const displayFontSize = fontSize;
 
   return (
     <div
@@ -338,16 +337,27 @@ export const TextElement = ({
       style={{
         width: 'fit-content',
         minWidth: '50px',
+        maxWidth: '80vw', // 뷰포트 너비의 80%로 최대 너비 제한
         cursor: isEditing ? 'text' : 'move',
       }}
       onMouseDown={(e) => {
+        // 편집 모드가 아니고, 포맷팅된 텍스트 내부 요소가 아닐 때만 드래그 시작
         if (!isEditing) {
-          onDragStart(e);
+          const target = e.target as HTMLElement;
+          // 포맷팅된 텍스트 내부 요소(<b>, <i>, <s> 등)에서 발생한 mousedown은 드래그로 처리
+          // 하지만 contentEditable 내부나 툴바는 제외
+          if (!target.closest('[contenteditable="true"]') && 
+              !target.closest('[data-text-toolbar]')) {
+            // 이벤트 전파를 막아서 board-canvas의 onMouseDown이 실행되지 않도록 함
+            // text-element의 onDragStart만 실행되도록 함
+            e.stopPropagation();
+            onDragStart(e);
+          }
         }
       }}
     >
       {isEditing ? (
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
+        <div className="relative" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '100%' }}>
           {/* 포맷팅 툴바 */}
           <TextToolbar
             contentEditableRef={contentEditableRef}
@@ -359,7 +369,6 @@ export const TextElement = ({
               textDecoration,
               color,
               backgroundColor,
-              heading,
             }}
             onStyleChange={onStyleChange}
             onDelete={onDelete}
@@ -445,6 +454,7 @@ export const TextElement = ({
               lineHeight: 1.2,
               minWidth: '50px',
               width: 'auto',
+              maxWidth: '80vw', // 뷰포트 너비의 80%로 최대 너비 제한
               marginTop: '8px', // 툴바와의 간격 확보
             }}
             suppressContentEditableWarning
@@ -453,6 +463,7 @@ export const TextElement = ({
       ) : (
         <div
           ref={displayContentRef}
+          data-text-element-display
           className="cursor-move"
           style={{
             fontSize: `${displayFontSize}px`,
@@ -468,17 +479,44 @@ export const TextElement = ({
             }),
           }}
           onClick={(e) => {
-            // 드래그용 mousedown과 충돌하지 않도록 click 쪽만 막아줌
+            // 포맷팅된 텍스트 내부 요소(<b>, <i> 등)가 클릭을 가로채지 않도록
+            // 외부 div에서 onClick 처리
             e.stopPropagation();
             onSelect?.(element.id);
           }}
           onDoubleClick={(e) => {
+            // 포맷팅된 텍스트 내부 요소에서 발생한 더블클릭도 처리
             e.stopPropagation();
             onSelect?.(element.id);
             onDoubleClick?.(e);
           }}
-          dangerouslySetInnerHTML={{ __html: element.content || '더블클릭하여 편집' }}
+        >
+          {/* pointer-events: none을 적용하여 내부 포맷팅 태그가 클릭을 가로채지 않도록 함 */}
+          <div
+            style={{ pointerEvents: 'none' }}
+            dangerouslySetInnerHTML={{ __html: element.content || '더블클릭하여 편집' }}
+          />
+        </div>
+      )}
+
+      {/* z-index 변경 버튼 (선택된 상태일 때만 표시) */}
+      {isSelected && !isEditing && (onBringForward || onSendBackward) && (
+        <ZIndexButtonGroup
+          onBringForward={onBringForward}
+          onSendBackward={onSendBackward}
         />
+      )}
+
+      {/* 더블클릭하여 편집 힌트 (내용이 있고 선택된 상태일 때만 표시) */}
+      {isSelected && !isEditing && element.content && element.content.trim() !== '' && element.content !== '더블클릭하여 편집' && !element.content.includes('더블클릭하여 편집') && (
+        <div className="absolute bottom-2 right-2 z-40">
+          <span
+            className={`text-xs px-2 py-1 rounded ${classes.bg} ${classes.textMuted} backdrop-blur-sm bg-opacity-80 shadow-sm`}
+            style={{ color }}
+          >
+            더블클릭하여 편집
+          </span>
+        </div>
       )}
 
       {/* 작성자 표시 */}
@@ -498,4 +536,22 @@ export const TextElement = ({
     </div>
   );
 };
+
+export const TextElement = React.memo(TextElementComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.element.id === nextProps.element.id &&
+    prevProps.element.content === nextProps.element.content &&
+    prevProps.element.position.x === nextProps.element.position.x &&
+    prevProps.element.position.y === nextProps.element.position.y &&
+    prevProps.element.size.width === nextProps.element.size.width &&
+    prevProps.element.size.height === nextProps.element.size.height &&
+    JSON.stringify(prevProps.element.textStyle) === JSON.stringify(nextProps.element.textStyle) &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.editContent === nextProps.editContent &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isOwner === nextProps.isOwner &&
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.scale === nextProps.scale
+  );
+});
 

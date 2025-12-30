@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
+import type { TextStyle } from '@entities/element';
 
 /**
  * 편집 권한 체크를 포함한 핸들러 래퍼 훅
@@ -14,7 +15,8 @@ interface UseEditGuardedHandlersProps {
     onElementResize: (elementId: string, size: { width: number; height: number }) => void;
     onElementUpdate: (elementId: string, content: string) => void;
     onElementColorChange: (elementId: string, color: string) => void;
-    onElementStyleChange?: (elementId: string, style: any) => void;
+    onElementStyleChange?: (elementId: string, style: TextStyle) => void;
+    onElementZIndexChange?: (elementId: string, zIndex: number) => void;
     onElementDelete: (elementId: string) => void;
     onAddNote: (position: { x: number; y: number }) => void;
     onAddImage: (position: { x: number; y: number }, file?: File) => void;
@@ -29,7 +31,8 @@ interface UseEditGuardedHandlersReturn {
   onElementResize: (elementId: string, size: { width: number; height: number }) => void;
   onElementUpdate: (elementId: string, content: string) => void;
   onElementColorChange: (elementId: string, color: string) => void;
-  onElementStyleChange?: (elementId: string, style: any) => void;
+  onElementStyleChange?: (elementId: string, style: TextStyle) => void;
+  onElementZIndexChange?: (elementId: string, zIndex: number) => void;
   onElementDelete: (elementId: string) => void;
   onAddNote: (position: { x: number; y: number }) => void;
   onAddImage: (position: { x: number; y: number }, file?: File) => void;
@@ -42,8 +45,8 @@ export const useEditGuardedHandlers = ({
   onPermissionDenied,
 }: UseEditGuardedHandlersProps): UseEditGuardedHandlersReturn => {
   const guardedHandlers = useMemo(() => {
-    const guard = <T extends (...args: any[]) => any>(fn: T): T => {
-      return ((...args: any[]) => {
+    const guard = <T extends (...args: unknown[]) => unknown>(fn: T): T => {
+      return ((...args: unknown[]) => {
         if (!checkCanEdit()) {
           onPermissionDenied?.();
           return;
@@ -58,6 +61,7 @@ export const useEditGuardedHandlers = ({
       onElementUpdate: guard(handlers.onElementUpdate),
       onElementColorChange: guard(handlers.onElementColorChange),
       onElementStyleChange: handlers.onElementStyleChange ? guard(handlers.onElementStyleChange) : undefined,
+      onElementZIndexChange: handlers.onElementZIndexChange ? guard(handlers.onElementZIndexChange) : undefined,
       onElementDelete: guard(handlers.onElementDelete),
       onAddNote: guard(handlers.onAddNote),
       onAddImage: guard(handlers.onAddImage),

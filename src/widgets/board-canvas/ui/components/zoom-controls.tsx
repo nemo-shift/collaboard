@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTheme } from '@shared/lib';
+import { Tooltip } from '@shared/ui';
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, ZOOM_MIN_PERCENT, ZOOM_MAX_PERCENT } from '@features/content/lib/constants';
 
 interface ZoomControlsProps {
@@ -23,7 +24,7 @@ export const ZoomControls = ({ scale, onScaleChange }: ZoomControlsProps) => {
   };
 
   const handleZoomOut = () => {
-    onScaleChange(Math.max(ZOOM_MIN, scale * ZOOM_STEP));
+    onScaleChange(Math.max(ZOOM_MIN, scale / ZOOM_STEP));
   };
 
   const handleZoomInputBlur = () => {
@@ -53,13 +54,15 @@ export const ZoomControls = ({ scale, onScaleChange }: ZoomControlsProps) => {
 
   return (
     <div className={`absolute bottom-4 right-4 flex flex-col gap-2 ${classes.bg} ${classes.border} rounded-lg shadow-lg p-2`}>
-      <button
-        onClick={handleZoomIn}
-        className={`w-8 h-8 flex items-center justify-center ${classes.textSecondary} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
-        title="줌인"
-      >
-        +
-      </button>
+      <Tooltip content="줌인">
+        <button
+          onClick={handleZoomIn}
+          aria-label="줌인"
+          className={`w-8 h-8 flex items-center justify-center ${classes.textMuted} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
+        >
+          +
+        </button>
+      </Tooltip>
       {isEditingZoom ? (
         <input
           type="number"
@@ -70,27 +73,31 @@ export const ZoomControls = ({ scale, onScaleChange }: ZoomControlsProps) => {
           onBlur={handleZoomInputBlur}
           onKeyDown={handleZoomInputKeyDown}
           autoFocus
-          className={`w-12 h-6 text-xs text-center ${classes.borderSecondary} rounded focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent ${classes.text}`}
+          aria-label="줌 레벨 입력"
+          className={`w-12 h-6 text-xs text-center ${classes.border} rounded focus:outline-none focus:ring-2 focus:ring-gray-900 dark:focus:ring-gray-100 focus:border-transparent ${classes.text}`}
         />
       ) : (
-        <div
-          className={`text-xs text-center ${classes.textSecondary} px-2 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-w-[48px]`}
-          onClick={() => {
-            setZoomInputValue(currentZoomPercent.toString());
-            setIsEditingZoom(true);
-          }}
-          title="클릭하여 줌 레벨 입력"
-        >
-          {currentZoomPercent}%
-        </div>
+        <Tooltip content="클릭하여 줌 레벨 입력">
+          <div
+            className={`text-xs text-center ${classes.textMuted} px-2 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors min-w-[48px]`}
+            onClick={() => {
+              setZoomInputValue(currentZoomPercent.toString());
+              setIsEditingZoom(true);
+            }}
+          >
+            {currentZoomPercent}%
+          </div>
+        </Tooltip>
       )}
-      <button
-        onClick={handleZoomOut}
-        className={`w-8 h-8 flex items-center justify-center ${classes.textSecondary} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
-        title="줌아웃"
-      >
-        −
-      </button>
+      <Tooltip content="줌아웃">
+        <button
+          onClick={handleZoomOut}
+          aria-label="줌아웃"
+          className={`w-8 h-8 flex items-center justify-center ${classes.textMuted} hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition-colors`}
+        >
+          −
+        </button>
+      </Tooltip>
     </div>
   );
 };

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from './button';
+import { logger } from '@shared/lib';
 
 interface InviteModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const InviteModal = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      logger.error('Failed to copy:', error);
     }
   };
 

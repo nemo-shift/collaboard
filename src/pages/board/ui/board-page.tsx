@@ -11,7 +11,7 @@ import { useCollaboration } from '@features/collaboration';
 import { useBoardActions, useBoardRealtimeUpdates } from '@features/board';
 import { useAuth } from '@features/auth';
 import { getBoard, updateBoard } from '@features/board/api';
-import { generateAnonymousUserId, useTheme } from '@shared/lib';
+import { generateAnonymousUserId, useTheme, logger } from '@shared/lib';
 import type { Board } from '@entities/board';
 
 export const BoardPage = () => {
@@ -23,6 +23,7 @@ export const BoardPage = () => {
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isPrivateBoardModalOpen, setIsPrivateBoardModalOpen] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: ToastType; duration?: number }>>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 어나니머스 사용자 ID (localStorage에 저장하여 일관성 유지)
   const anonymousUserId = useMemo(() => generateAnonymousUserId(), []);
@@ -75,7 +76,7 @@ export const BoardPage = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to load board:', error);
+        logger.error('Failed to load board:', error);
       } finally {
         setIsLoadingBoard(false);
       }
@@ -159,7 +160,7 @@ export const BoardPage = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to update board:', error);
+      logger.error('Failed to update board:', error);
       throw error;
     }
   };
@@ -231,16 +232,24 @@ export const BoardPage = () => {
         onFileSelect={handleFileSelect}
         onBoardUpdate={handleBoardUpdate}
         isOwner={isOwner}
+        onModalStateChange={setIsModalOpen}
+        isAnonymous={isAnonymous}
+        onEditBlocked={() => setIsSignupModalOpen(true)}
       />
 
-      {/* 보드 캔버스 */}
-      <div className="flex-1 relative" data-board-canvas>
+      {/* 보드 캔버스 - fixed 툴바 아래에 위치하도록 여백 추가 (헤더 64px + 보드 툴바 높이) */}
+      <div 
+        className="flex-1 relative" 
+        data-board-canvas
+      >
         {/* 협업 위젯 - 보드 위에 플로팅 */}
+        {!isModalOpen && (
         <CollaborationWidget
           cursors={cursors}
           currentUserId={currentUser.userId}
           currentUserName={currentUser.userName}
         />
+        )}
 
         <BoardCanvas
           boardId={boardId}
@@ -251,6 +260,7 @@ export const BoardPage = () => {
           onElementUpdate={guardedHandlers.onElementUpdate}
           onElementColorChange={guardedHandlers.onElementColorChange}
           onElementStyleChange={guardedHandlers.onElementStyleChange}
+          onElementZIndexChange={guardedHandlers.onElementZIndexChange}
           onElementDelete={guardedHandlers.onElementDelete}
           onAddNote={guardedHandlers.onAddNote}
           onAddImage={guardedHandlers.onAddImage}
@@ -260,6 +270,7 @@ export const BoardPage = () => {
           onEditBlocked={() => setIsSignupModalOpen(true)}
           isOwner={isOwner}
           currentUserId={currentUser.userId}
+          isModalOpen={isModalOpen}
         />
       </div>
 

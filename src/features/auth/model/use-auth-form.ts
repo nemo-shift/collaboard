@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { logger } from '@shared/lib';
 
 interface AuthFormData {
   username: string;
@@ -43,7 +44,7 @@ export const useAuthForm = (): UseAuthFormReturn => {
         // 임시: 성공 시 대시보드로 이동
         // router.push('/dashboard');
       } catch (error) {
-        console.error('Sign up error:', error);
+        logger.error('Sign up error:', error);
         // TODO: 에러 처리 (토스트 메시지 등)
       } finally {
         setIsSubmitting(false);

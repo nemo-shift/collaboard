@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { signInWithGoogle } from '@features/auth/api';
+import { logger } from '@shared/lib';
 
 interface UseGoogleAuthReturn {
   handleGoogleLogin: () => Promise<void>;
@@ -18,7 +19,7 @@ export const useGoogleAuth = (): UseGoogleAuthReturn => {
       await signInWithGoogle();
       // OAuth는 리다이렉트되므로 여기서는 대기만 함
     } catch (error) {
-      console.error('Google login error:', error);
+      logger.error('Google login error:', error);
       // TODO: 에러 처리 (토스트 메시지 등)
       throw error;
     } finally {

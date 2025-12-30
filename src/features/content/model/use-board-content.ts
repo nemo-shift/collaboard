@@ -12,7 +12,7 @@ import {
   deleteBoardElement,
 } from '@features/content/api';
 import { uploadImage, deleteImage } from '@features/content/api/supabase/storage';
-import { useRealtimeSubscription, fetchUserName, type RealtimeEvent } from '@shared/lib';
+import { useRealtimeSubscription, fetchUserName, type RealtimeEvent, logger } from '@shared/lib';
 import {
   mapElementRowToElement,
   type BoardElementRowWithJoins,
@@ -35,7 +35,8 @@ interface UseBoardContentReturn {
     onElementResize: (elementId: string, size: { width: number; height: number }) => void;
     onElementUpdate: (elementId: string, content: string) => void;
     onElementColorChange: (elementId: string, color: string) => void;
-    onElementStyleChange: (elementId: string, style: any) => void;
+    onElementStyleChange: (elementId: string, style: TextStyle) => void;
+    onElementZIndexChange: (elementId: string, zIndex: number) => void;
     onElementDelete: (elementId: string) => void;
     onAddNote: (position: { x: number; y: number }) => void;
     onAddImage: (position: { x: number; y: number }, file: File) => void;
@@ -81,7 +82,7 @@ export const useBoardContent = ({
         const fetchedElements = await getBoardElements(boardId);
         setElements(fetchedElements);
       } catch (error) {
-        console.error('Failed to load board elements:', error);
+        logger.error('Failed to load board elements:', error);
         // 에러 발생 시 빈 배열 유지
       } finally {
         setIsLoading(false);
@@ -94,7 +95,7 @@ export const useBoardContent = ({
 
   // Realtime 구독: board_elements 테이블 변경 감지
   const shouldIgnoreRealtimeEvent = useCallback(
-    (payload: { new: any; old: any }, event: RealtimeEvent) => {
+    (payload: { new: unknown; old: unknown }, event: RealtimeEvent) => {
       // DELETE 이벤트는 payload.old에 삭제된 행 데이터가 있음
       if (event === 'DELETE') {
         const deletedRow = payload.old;
@@ -129,7 +130,7 @@ export const useBoardContent = ({
       }
       
       // INSERT, UPDATE는 payload.new 사용
-      const row = payload.new;
+      const row = payload.new as { id?: string; user_id?: string };
       if (!row) {
         return false;
       }
@@ -164,8 +165,8 @@ export const useBoardContent = ({
     [currentUserId]
   );
 
-  const handleRealtimeInsert = useCallback(async (payload: { new: any; old: any }) => {
-    const newRow = payload.new as any;
+  const handleRealtimeInsert = useCallback(async (payload: { new: unknown; old: unknown }) => {
+    const newRow = payload.new as BoardElementRowWithJoins;
     
     // 사용자 정보 조회
     const userName = await fetchUserName(newRow.user_id);
@@ -185,8 +186,8 @@ export const useBoardContent = ({
     });
   }, []);
 
-  const handleRealtimeUpdate = useCallback(async (payload: { new: any; old: any }) => {
-    const updatedRow = payload.new as any;
+  const handleRealtimeUpdate = useCallback(async (payload: { new: unknown; old: unknown }) => {
+    const updatedRow = payload.new as BoardElementRowWithJoins;
     
     // 사용자 정보 조회
     const userName = await fetchUserName(updatedRow.user_id);
@@ -203,12 +204,12 @@ export const useBoardContent = ({
     );
   }, []);
 
-  const handleRealtimeDelete = useCallback((payload: { new: any; old: any }) => {
-    const deletedRow = payload.old;
+  const handleRealtimeDelete = useCallback((payload: { new: unknown; old: unknown }) => {
+    const deletedRow = payload.old as { id?: string };
     const deletedId = deletedRow?.id;
     
     if (!deletedId) {
-      console.error('[Realtime DELETE] id를 찾을 수 없습니다:', payload);
+      logger.error('[Realtime DELETE] id를 찾을 수 없습니다:', payload);
       return;
     }
     
@@ -254,7 +255,7 @@ export const useBoardContent = ({
       // 요소가 존재하는지 확인
       const elementExists = elements.some((el) => el.id === elementId);
       if (!elementExists) {
-        console.warn('[handleElementMove] 요소가 존재하지 않습니다:', elementId);
+        logger.warn('[handleElementMove] 요소가 존재하지 않습니다:', elementId);
         return;
       }
       
@@ -279,14 +280,15 @@ export const useBoardContent = ({
         // Supabase로 업데이트
         try {
           await updateBoardElement(elementId, { position });
-        } catch (error: any) {
-          console.error('Failed to update element position:', error);
+        } catch (error: unknown) {
+          logger.error('Failed to update element position:', error);
           // 에러 발생 시 추적 정보 제거
           recentlyUpdatedRef.current.delete(elementId);
           draggingElementsRef.current.delete(elementId);
           
           // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
-          if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('존재하지 않습니다') || errorMessage.includes('권한이 없습니다')) {
             setElements((prev) => prev.filter((el) => el.id !== elementId));
             return;
           }
@@ -297,7 +299,7 @@ export const useBoardContent = ({
               const fetchedElements = await getBoardElements(boardId);
               setElements(fetchedElements);
             } catch (err) {
-              console.error('Failed to reload elements:', err);
+              logger.error('Failed to reload elements:', err);
             }
           };
           loadElements();
@@ -312,7 +314,7 @@ export const useBoardContent = ({
       // 요소가 존재하는지 확인
       const elementExists = elements.some((el) => el.id === elementId);
       if (!elementExists) {
-        console.warn('[handleElementResize] 요소가 존재하지 않습니다:', elementId);
+        logger.warn('[handleElementResize] 요소가 존재하지 않습니다:', elementId);
         return;
       }
       
@@ -327,13 +329,14 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { size });
-      } catch (error: any) {
-        console.error('Failed to update element size:', error);
+      } catch (error: unknown) {
+        logger.error('Failed to update element size:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
         
         // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
-        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('존재하지 않습니다') || errorMessage.includes('권한이 없습니다')) {
           setElements((prev) => prev.filter((el) => el.id !== elementId));
           return;
         }
@@ -344,7 +347,7 @@ export const useBoardContent = ({
             const fetchedElements = await getBoardElements(boardId);
             setElements(fetchedElements);
           } catch (err) {
-            console.error('Failed to reload elements:', err);
+            logger.error('Failed to reload elements:', err);
           }
         };
         loadElements();
@@ -358,7 +361,7 @@ export const useBoardContent = ({
       // 요소가 존재하는지 확인
       const elementExists = elements.some((el) => el.id === elementId);
       if (!elementExists) {
-        console.warn('[handleElementUpdate] 요소가 존재하지 않습니다:', elementId);
+        logger.warn('[handleElementUpdate] 요소가 존재하지 않습니다:', elementId);
         return;
       }
       
@@ -373,13 +376,14 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { content });
-      } catch (error: any) {
-        console.error('Failed to update element content:', error);
+      } catch (error: unknown) {
+        logger.error('Failed to update element content:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
         
         // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
-        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('존재하지 않습니다') || errorMessage.includes('권한이 없습니다')) {
           setElements((prev) => prev.filter((el) => el.id !== elementId));
           return;
         }
@@ -390,7 +394,7 @@ export const useBoardContent = ({
             const fetchedElements = await getBoardElements(boardId);
             setElements(fetchedElements);
           } catch (err) {
-            console.error('Failed to reload elements:', err);
+            logger.error('Failed to reload elements:', err);
           }
         };
         loadElements();
@@ -404,7 +408,7 @@ export const useBoardContent = ({
       // 요소가 존재하는지 확인
       const elementExists = elements.some((el) => el.id === elementId);
       if (!elementExists) {
-        console.warn('[handleElementColorChange] 요소가 존재하지 않습니다:', elementId);
+        logger.warn('[handleElementColorChange] 요소가 존재하지 않습니다:', elementId);
         return;
       }
       
@@ -419,13 +423,14 @@ export const useBoardContent = ({
       // Supabase로 업데이트
       try {
         await updateBoardElement(elementId, { color });
-      } catch (error: any) {
-        console.error('Failed to update element color:', error);
+      } catch (error: unknown) {
+        logger.error('Failed to update element color:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
         
         // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
-        if (error?.message?.includes('존재하지 않습니다') || error?.message?.includes('권한이 없습니다')) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('존재하지 않습니다') || errorMessage.includes('권한이 없습니다')) {
           setElements((prev) => prev.filter((el) => el.id !== elementId));
           return;
         }
@@ -436,7 +441,7 @@ export const useBoardContent = ({
             const fetchedElements = await getBoardElements(boardId);
             setElements(fetchedElements);
           } catch (err) {
-            console.error('Failed to reload elements:', err);
+            logger.error('Failed to reload elements:', err);
           }
         };
         loadElements();
@@ -454,7 +459,7 @@ export const useBoardContent = ({
       const isElementOwner = element.userId === currentUserId;
       if (!isOwner && !isElementOwner) {
         // 보드 소유자가 아니고, 요소 소유자도 아닌 경우 삭제 불가
-        console.warn('Cannot delete element: permission denied');
+        logger.warn('Cannot delete element: permission denied');
         onPermissionDenied?.('다른 사용자의 요소를 삭제할 권한이 없습니다.');
         return;
       }
@@ -477,13 +482,13 @@ export const useBoardContent = ({
             try {
               await deleteImage(element.content);
             } catch (storageError) {
-              console.warn('Failed to delete image from storage:', storageError);
+              logger.warn('Failed to delete image from storage:', storageError);
               // Storage 삭제 실패해도 계속 진행
             }
           }
         }
       } catch (error) {
-        console.error('[handleElementDelete] Supabase 삭제 실패:', error);
+        logger.error('[handleElementDelete] Supabase 삭제 실패:', error);
         // 에러 발생 시 추적 정보 제거
         recentlyUpdatedRef.current.delete(elementId);
         // 에러 발생 시 이전 상태로 복구
@@ -492,7 +497,7 @@ export const useBoardContent = ({
             const fetchedElements = await getBoardElements(boardId);
             setElements(fetchedElements);
           } catch (err) {
-            console.error('Failed to reload elements:', err);
+            logger.error('Failed to reload elements:', err);
           }
         };
         loadElements();
@@ -515,7 +520,7 @@ export const useBoardContent = ({
         });
         setElements((prev) => [...prev, newElement]);
       } catch (error) {
-        console.error('Failed to create note:', error);
+        logger.error('Failed to create note:', error);
       }
     },
     [boardId, currentUserId]
@@ -541,14 +546,14 @@ export const useBoardContent = ({
         });
         setElements((prev) => [...prev, newElement]);
       } catch (error) {
-        console.error('Failed to create text:', error);
+        logger.error('Failed to create text:', error);
       }
     },
     [boardId, currentUserId]
   );
 
   const handleElementStyleChange = useCallback(
-    async (elementId: string, style: any) => {
+    async (elementId: string, style: TextStyle) => {
       const element = elements.find((el) => el.id === elementId);
       if (!element) return;
 
@@ -569,10 +574,66 @@ export const useBoardContent = ({
           )
         );
       } catch (error) {
-        console.error('Failed to update text style:', error);
+        logger.error('Failed to update text style:', error);
       }
     },
     [elements, currentUserId, isOwner, onPermissionDenied]
+  );
+
+  const handleElementZIndexChange = useCallback(
+    async (elementId: string, zIndex: number) => {
+      // 요소가 존재하는지 확인
+      const elementExists = elements.some((el) => el.id === elementId);
+      if (!elementExists) {
+        logger.warn('[handleElementZIndexChange] 요소가 존재하지 않습니다:', elementId);
+        return;
+      }
+
+      // 권한 체크
+      const element = elements.find((el) => el.id === elementId);
+      if (!element) return;
+      const canEdit = isOwner || element.userId === currentUserId;
+      if (!canEdit) {
+        onPermissionDenied?.('다른 사용자의 요소를 수정할 권한이 없습니다.');
+        return;
+      }
+
+      // 최근 업데이트 추적 (Realtime 이벤트 무시용)
+      recentlyUpdatedRef.current.set(elementId, Date.now());
+
+      // Optimistic update
+      setElements((prev) =>
+        prev.map((el) => (el.id === elementId ? { ...el, zIndex } : el))
+      );
+
+      // Supabase로 업데이트
+      try {
+        await updateBoardElement(elementId, { zIndex });
+      } catch (error: unknown) {
+        logger.error('Failed to update element zIndex:', error);
+        // 에러 발생 시 추적 정보 제거
+        recentlyUpdatedRef.current.delete(elementId);
+
+        // 요소가 존재하지 않거나 권한이 없는 경우 UI에서 제거
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('존재하지 않습니다') || errorMessage.includes('권한이 없습니다')) {
+          setElements((prev) => prev.filter((el) => el.id !== elementId));
+          return;
+        }
+
+        // 에러 발생 시 이전 상태로 복구
+        const loadElements = async () => {
+          try {
+            const fetchedElements = await getBoardElements(boardId);
+            setElements(fetchedElements);
+          } catch (err) {
+            logger.error('Failed to reload elements:', err);
+          }
+        };
+        loadElements();
+      }
+    },
+    [boardId, elements, currentUserId, isOwner, onPermissionDenied]
   );
 
   const handleAddImage = useCallback(
@@ -593,7 +654,7 @@ export const useBoardContent = ({
           try {
             imageUrl = await uploadImage(file, boardId, tempElementId);
           } catch (uploadError) {
-            console.error('Failed to upload image:', uploadError);
+            logger.error('Failed to upload image:', uploadError);
             // 업로드 실패 시 임시 blob URL 사용 (기존 동작 유지)
             imageUrl = objectUrl;
           }
@@ -616,13 +677,13 @@ export const useBoardContent = ({
           // blob URL 정리
           URL.revokeObjectURL(objectUrl);
         } catch (error) {
-          console.error('Failed to create image element:', error);
+          logger.error('Failed to create image element:', error);
           URL.revokeObjectURL(objectUrl);
         }
       };
       
       img.onerror = () => {
-        console.error('Failed to load image');
+        logger.error('Failed to load image');
         URL.revokeObjectURL(objectUrl);
       };
       
@@ -639,6 +700,7 @@ export const useBoardContent = ({
       onElementUpdate: handleElementUpdate,
       onElementColorChange: handleElementColorChange,
       onElementStyleChange: handleElementStyleChange,
+      onElementZIndexChange: handleElementZIndexChange,
       onElementDelete: handleElementDelete,
       onAddNote: handleAddNote,
       onAddImage: handleAddImage,

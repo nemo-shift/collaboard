@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getBoards } from '@features/board/api';
-import { useRealtimeSubscription } from '@shared/lib';
+import { useRealtimeSubscription, logger } from '@shared/lib';
 import type { Board } from '@entities/board';
 import { useAuth } from '@features/auth';
 
@@ -35,7 +35,7 @@ export const useBoardList = (): UseBoardListReturn => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '보드 목록을 불러오는데 실패했습니다.';
       setError(errorMessage);
-      console.error('Failed to fetch boards:', err);
+      logger.error('Failed to fetch boards:', err);
       setBoards([]);
     } finally {
       setIsLoading(false);

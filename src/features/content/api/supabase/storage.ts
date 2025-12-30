@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@shared/api';
+import { logger } from '@shared/lib';
 
 const BUCKET_NAME = 'board-image';
 
@@ -67,7 +68,7 @@ export async function deleteImage(imageUrl: string): Promise<void> {
     // URL에서 버킷 이름 이후 경로 추출
     const bucketIndex = imageUrl.indexOf(`/${BUCKET_NAME}/`);
     if (bucketIndex === -1) {
-      console.warn('이미지 URL에서 버킷 경로를 찾을 수 없습니다:', imageUrl);
+      logger.warn('이미지 URL에서 버킷 경로를 찾을 수 없습니다:', imageUrl);
       return;
     }
 
@@ -80,11 +81,11 @@ export async function deleteImage(imageUrl: string): Promise<void> {
       .remove([fileName]);
 
     if (error) {
-      console.warn('이미지 삭제 실패 (무시됨):', error);
+      logger.warn('이미지 삭제 실패 (무시됨):', error);
       // 삭제 실패해도 에러를 throw하지 않음 (이미 DB에서 삭제된 경우 등)
     }
   } catch (error) {
-    console.warn('이미지 삭제 중 오류 발생 (무시됨):', error);
+    logger.warn('이미지 삭제 중 오류 발생 (무시됨):', error);
   }
 }
 

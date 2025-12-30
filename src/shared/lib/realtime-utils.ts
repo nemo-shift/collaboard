@@ -1,6 +1,7 @@
 'use client';
 
 import { getUsers, getUserProfiles } from '@features/auth/api';
+import { logger } from './logger';
 
 /**
  * 사용자 정보 조회 및 이름 추출
@@ -11,7 +12,7 @@ export async function fetchUserName(userId: string): Promise<string | undefined>
     const user = users[0];
     return user?.displayName || user?.email?.split('@')[0] || undefined;
   } catch (error) {
-    console.error('Failed to fetch user name:', error);
+    logger.error('Failed to fetch user name:', error);
     return undefined;
   }
 }
@@ -33,7 +34,7 @@ export async function fetchUserNamesMap(userIds: string[]): Promise<Map<string, 
       }
     });
   } catch (error) {
-    console.error('Failed to fetch user names:', error);
+    logger.error('Failed to fetch user names:', error);
   }
   
   return namesMap;
@@ -56,7 +57,7 @@ export async function fetchOwnerName(
     const profile = profiles[0];
     return profile?.displayName || profile?.email?.split('@')[0] || undefined;
   } catch (error) {
-    console.error('Failed to fetch owner name:', error);
+    logger.error('Failed to fetch owner name:', error);
     return undefined;
   }
 }

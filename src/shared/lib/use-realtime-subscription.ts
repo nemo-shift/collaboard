@@ -3,6 +3,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@shared/api';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from './logger';
 
 export type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
@@ -15,11 +16,11 @@ export interface RealtimeSubscriptionConfig {
   enabled?: boolean;
 }
 
-export interface RealtimeSubscriptionCallbacks<T = any> {
-  onInsert?: (payload: { new: any; old: any }) => Promise<T> | T | void;
-  onUpdate?: (payload: { new: any; old: any }) => Promise<T> | T | void;
-  onDelete?: (payload: { new: any; old: any }) => Promise<T> | T | void;
-  shouldIgnore?: (payload: { new: any; old: any }, event: RealtimeEvent) => boolean;
+export interface RealtimeSubscriptionCallbacks<T = unknown> {
+  onInsert?: (payload: { new: unknown; old: unknown }) => Promise<T> | T | void;
+  onUpdate?: (payload: { new: unknown; old: unknown }) => Promise<T> | T | void;
+  onDelete?: (payload: { new: unknown; old: unknown }) => Promise<T> | T | void;
+  shouldIgnore?: (payload: { new: unknown; old: unknown }, event: RealtimeEvent) => boolean;
 }
 
 /**
@@ -70,7 +71,7 @@ export interface RealtimeSubscriptionCallbacks<T = any> {
  * });
  * ```
  */
-export function useRealtimeSubscription<T = any>(
+export function useRealtimeSubscription<T = unknown>(
   config: RealtimeSubscriptionConfig,
   callbacks: RealtimeSubscriptionCallbacks<T>
 ): void {
@@ -219,12 +220,12 @@ export function useRealtimeSubscription<T = any>(
         async (payload) => {
           // payload.old가 없거나 유효하지 않은 경우 에러 로그만 출력
           if (!payload.old) {
-            console.error('[RealtimeSubscription] DELETE 이벤트: payload.old가 없습니다', payload);
+            logger.error('[RealtimeSubscription] DELETE 이벤트: payload.old가 없습니다', payload);
             return;
           }
           
           if (!payload.old.id) {
-            console.error('[RealtimeSubscription] DELETE 이벤트: payload.old.id가 없습니다', payload);
+            logger.error('[RealtimeSubscription] DELETE 이벤트: payload.old.id가 없습니다', payload);
             return;
           }
           
@@ -236,7 +237,7 @@ export function useRealtimeSubscription<T = any>(
             try {
               await onDeleteRef.current(payload);
             } catch (error) {
-              console.error('[RealtimeSubscription] DELETE 핸들러 에러:', error);
+              logger.error('[RealtimeSubscription] DELETE 핸들러 에러:', error);
             }
           }
         }

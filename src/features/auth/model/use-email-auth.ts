@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { signInWithEmail, signUpWithEmail } from '@features/auth/api';
 import { useAuthStore } from './store';
 import { validatePassword, checkPasswordMatch } from '@features/auth/lib';
+import { logger } from '@shared/lib';
 
 interface EmailAuthData {
   email: string;
@@ -93,7 +94,7 @@ export const useEmailAuth = (): UseEmailAuthReturn => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
         setError(errorMessage);
-        console.error('Email login error:', err);
+        logger.error('Email login error:', err);
       } finally {
         setIsLoggingIn(false);
       }
@@ -143,7 +144,7 @@ export const useEmailAuth = (): UseEmailAuthReturn => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다.';
         setError(errorMessage);
-        console.error('Email signup error:', err);
+        logger.error('Email signup error:', err);
       } finally {
         setIsSigningUp(false);
       }

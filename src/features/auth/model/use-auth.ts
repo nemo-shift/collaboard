@@ -3,6 +3,7 @@
 import { useAuthStore } from './store';
 import { signOut as signOutApi } from '@features/auth/api';
 import { useRouter } from 'next/navigation';
+import { logger } from '@shared/lib';
 
 export const useAuth = () => {
   const router = useRouter();
@@ -15,7 +16,7 @@ export const useAuth = () => {
       router.push('/');
       router.refresh();
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error:', error);
       // 에러가 발생해도 상태는 초기화
       clearAuth();
     }

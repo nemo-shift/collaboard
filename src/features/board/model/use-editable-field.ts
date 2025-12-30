@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { logger } from '@shared/lib';
 
 interface UseEditableFieldOptions {
   initialValue: string;
@@ -54,13 +55,16 @@ export const useEditableField = ({
     if (!enabled || !onSave) return;
 
     const trimmedValue = editedValue.trim();
+    
+    // 빈 값이면 초기값으로 복원하고 편집 모드 종료
     if (!trimmedValue) {
       setEditedValue(initialValue);
       setIsEditing(false);
       return;
     }
 
-    if (trimmedValue === initialValue) {
+    // 값이 변경되지 않았으면 편집 모드만 종료
+    if (trimmedValue === initialValue.trim()) {
       setIsEditing(false);
       return;
     }
@@ -70,7 +74,7 @@ export const useEditableField = ({
       await onSave(trimmedValue);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to save:', error);
+      logger.error('Failed to save:', error);
       setEditedValue(initialValue); // 롤백
     } finally {
       setIsSaving(false);

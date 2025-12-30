@@ -22,6 +22,7 @@ export interface BoardElement {
   size: { width: number; height: number };
   color?: string; // 포스트잇의 경우 배경색, 텍스트의 경우 기본 텍스트 색상
   textStyle?: TextStyle; // 텍스트 요소의 스타일 정보
+  zIndex?: number; // 요소의 z-index (깊이 순서)
   createdAt: string;
   updatedAt: string; // 수정 날짜
 }

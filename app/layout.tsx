@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider, ThemeProvider } from '@app/providers';
 import { Header } from '@widgets/header';
 import { BlobCursorWrapper } from '@app/providers/blob-cursor-wrapper';
+import { ErrorBoundary } from '@shared/ui';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,9 +68,11 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            <BlobCursorWrapper />
-            <Header />
-            {children}
+            <ErrorBoundary>
+              <BlobCursorWrapper />
+              <Header />
+              {children}
+            </ErrorBoundary>
           </AuthProvider>
         </ThemeProvider>
       </body>

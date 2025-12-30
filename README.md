@@ -7,11 +7,13 @@
 - ✅ **실시간 협업**: 여러 사용자가 동시에 작업하고 변경사항이 즉시 반영
 - ✅ **다크모드**: 라이트/다크 모드 전환 지원 (Tailwind CSS v4)
 - ✅ **포스트잇**: 다양한 색상의 포스트잇 생성, 편집, 삭제
-- ✅ **텍스트 요소**: 리치 텍스트 에디터 (굵게, 기울임, 밑줄, 취소선, 헤딩, 색상, 하이라이트)
+- ✅ **텍스트 요소**: 리치 텍스트 에디터 (굵게, 기울임, 밑줄, 취소선, 색상, 하이라이트)
 - ✅ **이미지 업로드**: Supabase Storage를 이용한 이미지 업로드 및 관리
 - ✅ **보드 관리**: 공개/비공개 보드 설정, 초대 링크 생성
 - ✅ **실시간 커서 추적**: 다른 사용자의 커서 위치를 실시간으로 확인
-- ✅ **Blob Cursor**: 마우스를 따라다니는 부드러운 blob 형태의 커서 (페이지별 제어 가능)
+- ✅ **미니맵**: 캔버스 전체를 한눈에 볼 수 있는 미니맵
+- ✅ **무한 캔버스**: 드래그로 자유롭게 이동하는 무한 캔버스
+- ✅ **Blob Cursor**: 랜딩 페이지에서만 활성화되는 부드러운 blob 형태의 커서
 
 ## 기술 스택
 
@@ -38,10 +40,19 @@ src/
 
 ## 문서
 
+### 개발 가이드
+- [프로젝트 기획서](./docs/PROJECT_SPEC.md) - 전체 기능 및 사용자 플로우
 - [FSD 컨벤션](./docs/FSD_CONVENTIONS.md) - 프로젝트 아키텍처 가이드
 - [FSD 코딩 가이드](./docs/FSD_CODING_GUIDE.md) - 코딩 규칙 및 예시
 - [트러블슈팅](./docs/TROUBLESHOOTING.md) - 개발 중 발생한 문제와 해결 방법
+
+### 설정 가이드
+- [Supabase 설정](./supabase/README.md) - 데이터베이스 및 Storage 설정
 - [MCP 설정](./docs/MCP_SETUP.md) - Model Context Protocol 설정 가이드
+- [설정 체크리스트](./SETUP_CHECKLIST.md) - 프로젝트 설정 단계별 가이드
+
+### 기타
+- [디자인 토큰 가이드](./docs/DESIGN_TOKENS_GUIDE.md) - 디자인 시스템 가이드
 
 ## 개발 가이드
 
@@ -74,37 +85,119 @@ npm run lint:strict
 - 사용하지 않는 import 감지
 - FSD 레이어 구조 준수
 
-## Getting Started
+## 시작하기
 
-First, run the development server:
+### 필수 요구사항
+
+- Node.js 18 이상
+- npm, yarn, pnpm, 또는 bun
+- Supabase 프로젝트
+
+### 설치 및 설정
+
+1. **의존성 설치**
+```bash
+npm install
+```
+
+2. **환경 변수 설정**
+
+`.env.local` 파일을 프로젝트 루트에 생성하고 다음 내용을 추가하세요:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+**중요**: 
+- Supabase 프로젝트가 없으면 먼저 [Supabase](https://supabase.com)에서 프로젝트를 생성해야 합니다.
+- 환경 변수가 없으면 애플리케이션이 실행되지 않습니다.
+
+3. **Supabase 데이터베이스 마이그레이션**
+
+Supabase 대시보드에서 SQL Editor로 이동하여 `supabase/migrations/` 폴더의 마이그레이션 파일들을 순서대로 실행하세요.
+
+자세한 내용은 [Supabase 설정 가이드](./supabase/README.md)를 참고하세요.
+
+4. **Supabase Storage 설정**
+
+이미지 업로드 기능을 사용하려면:
+- Supabase 대시보드 > Storage
+- 새 버킷 생성: `board-image` (Private)
+- Storage Policies 설정 (인증된 사용자만 업로드/읽기/삭제 가능)
+
+### 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000) 열기
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 프로덕션 빌드
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 빌드
+npm run build
 
-## Learn More
+# 프로덕션 서버 실행
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 코드 품질 체크
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Lint 확인
+npm run lint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 자동 수정
+npm run lint:fix
 
-## Deploy on Vercel
+# 엄격한 체크 (경고 없음)
+npm run lint:strict
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 배포
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Vercel 배포 (권장)
+
+1. [Vercel](https://vercel.com)에 프로젝트 연결
+2. 환경 변수 설정:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. 배포 자동 완료
+
+### 다른 플랫폼 배포
+
+Next.js를 지원하는 모든 플랫폼에서 배포 가능합니다:
+- Netlify
+- AWS Amplify
+- Railway
+- Render
+
+환경 변수만 올바르게 설정하면 됩니다.
+
+## 문제 해결
+
+### 환경 변수 에러
+- `.env.local` 파일이 있는지 확인
+- 환경 변수 이름이 정확한지 확인 (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+
+### 의존성 설치 에러
+```bash
+# node_modules 삭제 후 재설치
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### 빌드 에러
+```bash
+# 타입 체크
+npm run lint
+
+# .next 폴더 삭제 후 재빌드
+rm -rf .next
+npm run build
+```
+
+자세한 문제 해결 방법은 [트러블슈팅 문서](./docs/TROUBLESHOOTING.md)를 참고하세요.

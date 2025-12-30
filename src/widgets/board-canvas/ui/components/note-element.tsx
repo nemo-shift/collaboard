@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import type { BoardElement } from '@entities/element';
 import { ColorPicker } from '@shared/ui';
 import { formatUserName, DEFAULT_BACKGROUND_COLOR, useTheme } from '@shared/lib';
 import { DEFAULT_NOTE_COLOR } from '@features/content/lib/constants';
 import { ResizeHandle } from './resize-handle';
+import { ZIndexButtonGroup } from './z-index-buttons';
 
 interface NoteElementProps {
   element: BoardElement;
@@ -20,6 +21,8 @@ interface NoteElementProps {
   onColorChange: (color: string) => void;
   onDelete: () => void;
   onResizeStart: (e: React.MouseEvent) => void;
+  onBringForward?: () => void;
+  onSendBackward?: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
@@ -27,7 +30,7 @@ interface NoteElementProps {
  * 포스트잇 요소 컴포넌트
  * 편집 모드와 보기 모드를 지원
  */
-export const NoteElement = ({
+const NoteElementComponent = ({
   element,
   isEditing,
   editContent,
@@ -40,6 +43,8 @@ export const NoteElement = ({
   onColorChange,
   onDelete,
   onResizeStart,
+  onBringForward,
+  onSendBackward,
   textareaRef,
 }: NoteElementProps) => {
   const { classes, isDark } = useTheme();
@@ -105,8 +110,7 @@ export const NoteElement = ({
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                className="w-6 h-6 flex items-center justify-center rounded transition-colors z-20 relative"
-                title="삭제 (Delete 키)"
+                className="w-6 h-6 flex items-center justify-center rounded transition-colors z-20 relative outline-none focus:outline-none"
               >
                 <svg
                   className={`w-4 h-4 hover:text-red-500 transition-colors ${!isDark ? classes.text : ''}`}
@@ -190,17 +194,37 @@ export const NoteElement = ({
           <div className={`mt-2 pt-2 border-t ${classes.border} flex-shrink-0`}>
             <div className="flex items-center gap-1.5">
               <div 
-                className={`w-1.5 h-1.5 rounded-full ${!isDark ? classes.textTertiary : ''}`}
-                style={textColor ? { backgroundColor: textColor } : undefined}
+                className="w-1.5 h-1.5 rounded-full"
+                style={undefined}
               />
               <span 
-                className={`text-xs ${!isDark ? classes.textTertiary : ''}`}
+                className={`text-xs ${classes.textMuted}`}
                 style={textColor ? { color: textColor } : undefined}
               >
                 {formatUserName(element.userName)}
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* z-index 변경 버튼 (선택된 상태일 때만 표시) */}
+      {isSelected && !isEditing && (onBringForward || onSendBackward) && (
+        <ZIndexButtonGroup
+          onBringForward={onBringForward}
+          onSendBackward={onSendBackward}
+        />
+      )}
+
+      {/* 더블클릭하여 편집 힌트 (내용이 있고 선택된 상태일 때만 표시) */}
+      {isSelected && !isEditing && element.content && element.content.trim() !== '' && (
+        <div className="absolute right-2 z-40" style={{ bottom: 'calc(3rem + 4px)' }}>
+          <span
+            className={`text-xs px-2 py-1 rounded ${classes.bg} ${classes.textMuted} backdrop-blur-sm bg-opacity-80 shadow-sm`}
+            style={textColor ? { color: textColor } : undefined}
+          >
+            더블클릭하여 편집
+          </span>
         </div>
       )}
 
@@ -211,4 +235,23 @@ export const NoteElement = ({
     </div>
   );
 };
+
+export const NoteElement = React.memo(NoteElementComponent, (prevProps, nextProps) => {
+  // 커스텀 비교 함수로 불필요한 리렌더링 방지
+  return (
+    prevProps.element.id === nextProps.element.id &&
+    prevProps.element.content === nextProps.element.content &&
+    prevProps.element.position.x === nextProps.element.position.x &&
+    prevProps.element.position.y === nextProps.element.position.y &&
+    prevProps.element.size.width === nextProps.element.size.width &&
+    prevProps.element.size.height === nextProps.element.size.height &&
+    prevProps.element.color === nextProps.element.color &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.editContent === nextProps.editContent &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isOwner === nextProps.isOwner &&
+    prevProps.currentUserId === nextProps.currentUserId &&
+    prevProps.scale === nextProps.scale
+  );
+});
 

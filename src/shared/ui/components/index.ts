@@ -14,6 +14,7 @@ export { PrivateBoardModal } from './private-board-modal';
 export { Toast, ToastContainer } from './toast';
 export type { ToastType } from './toast';
 export { Tooltip } from './tooltip';
+export { ErrorBoundary } from './error-boundary';
 export { ThemeToggle } from './theme-toggle';
 export { StatCard } from './stat-card';
 export * from './constants'; // 활성화됨 (UI 컴포넌트 상수)

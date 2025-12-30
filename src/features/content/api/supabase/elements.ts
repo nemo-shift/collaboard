@@ -18,6 +18,7 @@ export async function getBoardElements(boardId: string): Promise<BoardElement[]>
     .from('board_elements')
     .select('*')
     .eq('board_id', boardId)
+    .order('z_index', { ascending: true, nullsFirst: true })
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -82,7 +83,7 @@ export async function createBoardElement(
  */
 export async function updateBoardElement(
   elementId: string,
-  updates: Partial<Pick<BoardElement, 'content' | 'position' | 'size' | 'color' | 'textStyle'>>
+  updates: Partial<Pick<BoardElement, 'content' | 'position' | 'size' | 'color' | 'textStyle' | 'zIndex'>>
 ): Promise<BoardElement> {
   const updateRow = mapElementToUpdateRow(updates);
 

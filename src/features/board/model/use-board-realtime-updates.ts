@@ -23,8 +23,17 @@ export const useBoardRealtimeUpdates = ({
   setBoard,
 }: UseBoardRealtimeUpdatesProps): void => {
   const handleRealtimeBoardUpdate = useCallback(
-    async (payload: { new: any; old: any }) => {
-      const updatedRow = payload.new as any;
+    async (payload: { new: unknown; old: unknown }) => {
+      const updatedRow = payload.new as {
+        id: string;
+        name: string;
+        description?: string | null;
+        owner_id: string;
+        created_at: string;
+        updated_at: string;
+        is_public: boolean;
+        invite_code?: string | null;
+      };
 
       // 현재 사용자 정보
       const {

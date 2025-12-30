@@ -1,7 +1,7 @@
 // Board element database mapping utilities
 // 데이터베이스 Row와 TypeScript BoardElement 타입 간 변환 유틸리티
 
-import type { BoardElement } from '../model';
+import type { BoardElement, TextStyle } from '../model';
 
 /**
  * 데이터베이스 board_elements 테이블 Row 타입
@@ -15,7 +15,8 @@ export interface BoardElementRow {
   position: { x: number; y: number };
   size: { width: number; height: number };
   color: string | null;
-  text_style?: { [key: string]: any } | null; // JSONB 필드
+  text_style?: TextStyle | null; // JSONB 필드
+  z_index?: number | null; // z-index 필드
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ export function mapElementRowToElement(row: BoardElementRowWithJoins): BoardElem
     size: row.size,
     color: row.color || undefined,
     textStyle: row.text_style || undefined,
+    zIndex: row.z_index ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -62,6 +64,7 @@ export function mapElementToInsertRow(
     size: element.size,
     color: element.color || null,
     text_style: element.textStyle || null,
+    z_index: element.zIndex ?? null,
   };
 }
 
@@ -69,9 +72,9 @@ export function mapElementToInsertRow(
  * BoardElement 타입을 데이터베이스 Update용 Row로 변환
  */
 export function mapElementToUpdateRow(
-  element: Partial<Pick<BoardElement, 'content' | 'position' | 'size' | 'color' | 'textStyle'>>
-): Partial<Pick<BoardElementRow, 'content' | 'position' | 'size' | 'color' | 'text_style'>> {
-  const updateRow: Partial<Pick<BoardElementRow, 'content' | 'position' | 'size' | 'color' | 'text_style'>> = {};
+  element: Partial<Pick<BoardElement, 'content' | 'position' | 'size' | 'color' | 'textStyle' | 'zIndex'>>
+): Partial<Pick<BoardElementRow, 'content' | 'position' | 'size' | 'color' | 'text_style' | 'z_index'>> {
+  const updateRow: Partial<Pick<BoardElementRow, 'content' | 'position' | 'size' | 'color' | 'text_style' | 'z_index'>> = {};
   
   if (element.content !== undefined) {
     updateRow.content = element.content;
@@ -87,6 +90,9 @@ export function mapElementToUpdateRow(
   }
   if (element.textStyle !== undefined) {
     updateRow.text_style = element.textStyle || null;
+  }
+  if (element.zIndex !== undefined) {
+    updateRow.z_index = element.zIndex ?? null;
   }
   
   return updateRow;

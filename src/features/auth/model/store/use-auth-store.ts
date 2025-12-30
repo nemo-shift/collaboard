@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { getCurrentUser, getSession } from '@features/auth/api';
 import type { User } from '@entities/user';
+import { logger } from '@shared/lib';
 
 interface AuthState {
   user: SupabaseUser | null;
@@ -64,12 +65,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // 세션이 없으면 익명 사용자로 설정
         get().clearAuth();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Refresh token 에러는 정상적인 상황 (세션 만료)
-      if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh_token')) {
+      const err = error as { message?: string };
+      if (err?.message?.includes('Refresh Token') || err?.message?.includes('refresh_token')) {
         get().clearAuth();
       } else {
-        console.error('Auth initialization error:', error);
+        logger.error('Auth initialization error:', error);
         get().clearAuth();
       }
     } finally {
@@ -83,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await getCurrentUser();
       get().setUser(user);
     } catch (error) {
-      console.error('Refresh user error:', error);
+      logger.error('Refresh user error:', error);
       get().clearAuth();
     } finally {
       set({ isLoading: false });

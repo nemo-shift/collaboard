@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@shared/api';
 import { useAuthStore } from './store';
+import { logger } from '@shared/lib';
 
 export const useAuthListener = () => {
   const { setUser, clearAuth } = useAuthStore();
@@ -16,14 +17,14 @@ export const useAuthListener = () => {
           clearAuth();
           return;
         }
-        console.error('Session error:', error);
+        logger.error('Session error:', error);
         clearAuth();
         return;
       }
       setUser(session?.user ?? null);
     }).catch((error) => {
       // 예상치 못한 에러 처리
-      console.error('Failed to get session:', error);
+      logger.error('Failed to get session:', error);
       clearAuth();
     });
 

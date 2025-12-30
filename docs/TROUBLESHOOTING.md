@@ -8,6 +8,8 @@
 2. [보드 캔버스와 드래그 위젯 이벤트 충돌 문제](#2-보드-캔버스와-드래그-위젯-이벤트-충돌-문제)
 3. [Supabase Realtime DELETE 이벤트가 다른 사용자에게 반영되지 않는 문제](#3-supabase-realtime-delete-이벤트가-다른-사용자에게-반영되지-않는-문제)
 4. [Tailwind CSS v4 다크모드 적용 문제](#4-tailwind-css-v4-다크모드-적용-문제)
+5. [포맷팅된 텍스트 선택 불가 문제](#5-포맷팅된-텍스트-선택-불가-문제)
+6. [협업 위젯 초기 위치 설정 문제](#6-협업-위젯-초기-위치-설정-문제)
 
 ---
 
@@ -855,5 +857,487 @@ export const LandingPage = () => {
 
 ---
 
-**마지막 업데이트**: 2025년 12월 26일
+## 5. 포맷팅된 텍스트 선택 불가 문제
+
+### 문제 상황
+
+**날짜**: 2025년 1월  
+**파일**: `src/widgets/board-canvas/ui/components/text-element.tsx`, `src/widgets/board-canvas/ui/board-canvas.tsx`  
+**증상**: 텍스트 요소에서 포맷팅된 텍스트(`<b>`, `<i>` 등)를 클릭해도 선택되지 않고, 편집 모드 진입이 불가능한 문제 발생.
+
+### 증상 상세
+
+- **증상**: 포맷팅이 적용된 텍스트(`<b>`, `<i>` 등)의 중간 부분을 클릭하면 선택되지 않음
+- **예외**: 텍스트 끝부분을 클릭하면 정상 작동
+- **조건**: 포맷팅이 없는 일반 텍스트는 정상 작동
+
+### 원인 분석
+
+**근본 원인**: 포맷팅 태그(`<b>`, `<i>` 등)가 클릭 이벤트를 가로채서 상위 div의 `onClick` 핸들러가 실행되지 않음
+
+**이벤트 흐름**:
+1. 사용자가 포맷팅된 텍스트(`<b>텍스트</b>`)를 클릭
+2. 클릭 이벤트가 `<b>` 태그에서 발생
+3. `e.target`이 `<b>` 태그가 되어 상위 div의 `onClick`이 실행되지 않음
+4. `BoardCanvas`의 요소 wrapper `onClick`이 먼저 실행되어 `e.stopPropagation()` 호출
+5. `TextElement`의 `onClick`이 실행되지 않음
+
+**초기 시도**:
+- `useFormattedTextInteraction` 훅을 사용하여 포맷팅된 텍스트 상호작용 처리 시도
+- `data-formatted-text-*` 속성을 동적으로 추가하여 클릭 감지 시도
+- 하지만 여전히 포맷팅 태그가 클릭을 가로채는 문제 발생
+
+### 시행착오 과정
+
+**시도 1**: `BoardCanvas`의 `onClick` 핸들러에서 `data-text-element-display` 체크 추가
+```typescript
+// board-canvas.tsx
+onClick={(e) => {
+  const target = e.target as HTMLElement;
+  const textElementDisplay = target.closest('[data-text-element-display]');
+  if (textElementDisplay) {
+    return; // TextElement가 처리하도록 함
+  }
+  // ...
+}}
+```
+
+**결과**: 부분 성공 - 하지만 포맷팅 태그에서 클릭 시 여전히 실패
+
+**시도 2**: `TextElement`의 `onClick`에서 `e.stopPropagation()` 추가
+```typescript
+// text-element.tsx
+onClick={(e) => {
+  e.stopPropagation();
+  onSelect?.(element.id);
+}}
+```
+
+**결과**: 부분 성공 - 하지만 포맷팅 태그 내부 클릭은 여전히 실패
+
+**시도 3**: Transparent overlay + pointer-events:none 구조 (최종 해결)
+```typescript
+// text-element.tsx
+<div onClick={...} onDoubleClick={...}>
+  <div style={{ pointerEvents: 'none' }} dangerouslySetInnerHTML={...} />
+</div>
+```
+
+**결과**: 성공 ✅ - 포맷팅 태그가 클릭을 가로채지 않음
+
+### 최종 해결 방법
+
+#### 핵심 아이디어: Transparent Overlay + pointer-events:none
+
+포맷팅된 텍스트의 클릭 이벤트 문제를 해결하기 위해 **transparent overlay 패턴**을 사용:
+
+1. **외부 div**: 클릭/더블클릭 이벤트 처리 (`onClick`, `onDoubleClick`)
+2. **내부 div**: `pointer-events: none` 적용하여 포맷팅 태그가 클릭을 가로채지 않도록 함
+
+#### 구현 코드
+
+```typescript
+// src/widgets/board-canvas/ui/components/text-element.tsx
+
+// 비편집 모드 렌더링
+{!isEditing && (
+  <div
+    ref={displayContentRef}
+    data-text-element-display
+    className="cursor-move"
+    style={{
+      fontSize: `${displayFontSize}px`,
+      fontWeight,
+      fontStyle,
+      textDecoration,
+      color,
+      backgroundColor: backgroundColor === 'transparent' ? 'transparent' : backgroundColor,
+      lineHeight: 1.2,
+      ...(isSelected && {
+        outline: `2px solid ${isDark ? '#9DFF4C' : '#FF2E2E'}`,
+        outlineOffset: '4px',
+      }),
+    }}
+    onClick={(e) => {
+      // 포맷팅된 텍스트 내부 요소가 클릭을 가로채지 않도록
+      // 외부 div에서 onClick 처리
+      e.stopPropagation();
+      onSelect?.(element.id);
+    }}
+    onDoubleClick={(e) => {
+      e.stopPropagation();
+      onSelect?.(element.id);
+      onDoubleClick?.(e);
+    }}
+  >
+    {/* pointer-events: none을 적용하여 내부 포맷팅 태그가 클릭을 가로채지 않도록 함 */}
+    <div
+      style={{ pointerEvents: 'none' }}
+      dangerouslySetInnerHTML={{ __html: element.content || '더블클릭하여 편집' }}
+    />
+  </div>
+)}
+```
+
+
+### 교훈
+
+1. **포맷팅된 HTML과 이벤트 처리**
+   - `dangerouslySetInnerHTML`로 렌더링된 포맷팅 태그는 클릭 이벤트를 가로챌 수 있음
+   - `pointer-events: none`을 사용하여 내부 요소의 클릭을 차단하고, 외부 컨테이너에서 이벤트 처리
+   - Transparent overlay 패턴은 복잡한 HTML 구조에서 이벤트 처리를 단순화하는 효과적인 방법
+
+2. **이벤트 버블링과 stopPropagation**
+   - 상위 요소의 이벤트 핸들러가 먼저 실행되면 하위 요소의 이벤트가 차단될 수 있음
+   - `stopPropagation()`을 적절히 사용하여 이벤트 전파를 제어해야 함
+   - 하지만 포맷팅 태그 내부 클릭은 `stopPropagation()`만으로는 해결되지 않음
+
+3. **디버깅 전략**
+   - 이벤트 흐름을 추적하기 위해 `e.target`과 `e.currentTarget`을 확인
+   - `closest()` 메서드를 사용하여 상위 요소까지 이벤트 타겟 확인
+   - 여러 시도 후 근본 원인을 찾아 해결하는 접근이 중요
+
+### 관련 파일
+
+- `src/widgets/board-canvas/ui/components/text-element.tsx` - 텍스트 요소 컴포넌트
+- `src/widgets/board-canvas/ui/board-canvas.tsx` - 보드 캔버스 (요소 렌더링 및 이벤트 처리)
+
+### 참고 자료
+
+- [MDN pointer-events](https://developer.mozilla.org/en-US/docs/Web/CSS/pointer-events)
+- [MDN Event bubbling and capturing](https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events#event_bubbling_and_capture)
+
+---
+
+## 6. 협업 위젯 초기 위치 설정 문제
+
+### 문제 상황
+
+**날짜**: 2025년 1월  
+**파일**: `src/widgets/collaboration-widget/ui/collaboration-widget.tsx`, `src/widgets/board-toolbar/ui/board-toolbar.tsx`  
+**증상**: 협업 위젯이 보드 툴바 위에 초기 위치로 나타나거나, 대시보드에서 보드로 이동할 때 잘못된 위치에 표시됨. 마우스 다운 시에만 올바른 위치로 이동함.
+
+### 증상 상세
+
+1. **보드 페이지 새로고침 시**
+   - 협업 위젯이 보드 툴바 위에 나타남
+   - 콘솔 로그에는 "위치가 올바름"이라고 표시되지만 실제로는 잘못된 위치
+   - 마우스를 움직이지 않고 마우스 다운만 하면 올바른 위치로 이동
+
+2. **대시보드에서 보드로 이동 시**
+   - 협업 위젯이 보드 툴바 위에 나타남
+   - `initialY`가 57로 계산되었다가 70으로 업데이트됨
+   - 하지만 `useDraggable`은 이미 57로 초기화되어 있어 위치가 맞지 않음
+
+3. **위치 조정 로직 실행 안 됨**
+   - `useEffect`가 실행되지만 실제 DOM 위치가 올바르지 않음
+   - `position` state와 실제 DOM `transform` 값이 불일치
+
+### 원인 분석
+
+#### 1단계: CSS 변수 타이밍 문제
+
+**핵심 문제 1**: `--board-toolbar-height` CSS 변수가 보드 툴바가 마운트된 후에 설정됨
+- 보드 툴바는 `ResizeObserver`를 사용하여 높이를 측정하고 CSS 변수에 저장
+- 협업 위젯은 페이지 로드 시점에 CSS 변수를 읽으려고 시도
+- CSS 변수가 아직 설정되지 않아 기본값(57px)을 사용
+
+#### 2단계: useDraggable 초기화 타이밍 문제
+
+**핵심 문제 2**: `useDraggable`이 `initialY`가 업데이트되기 전에 초기화됨
+- `useDraggable`은 컴포넌트 마운트 시 `initialPosition`을 사용하여 초기화
+- `initialY`는 `useState`의 초기값(57)으로 시작
+- CSS 변수가 업데이트되어 `initialY`가 70으로 변경되어도 `useDraggable`은 이미 초기화됨
+
+#### 3단계: localStorage 위치와 실제 위치 불일치
+
+**핵심 문제 3**: localStorage에 저장된 위치가 보드 툴바 위에 있을 수 있음
+- 이전에 보드 툴바 높이가 다르거나 없었을 때 저장된 위치
+- `useDraggable`이 localStorage에서 위치를 불러오면 보드 툴바 위에 위치할 수 있음
+
+#### 4단계: DOM transform과 React state 불일치
+
+**핵심 문제 4**: `useDraggable`이 DOM의 `transform`을 직접 조작하지만 React state는 별도로 관리됨
+- `useDraggable`은 `transform`을 사용하여 위치를 업데이트
+- React state(`position`)는 별도로 관리되어 실제 DOM과 불일치할 수 있음
+- `useEffect`에서 `position` state를 확인하지만 실제 DOM 위치는 다를 수 있음
+
+### 시행착오 과정
+
+#### 시도 1: initialY를 useMemo로 계산
+
+```typescript
+const initialY = useMemo(() => {
+  if (typeof window !== 'undefined') {
+    return parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--board-toolbar-height')
+    ) || 57;
+  }
+  return 57;
+}, []);
+```
+
+**결과**: 실패 - CSS 변수가 업데이트되어도 `useMemo`가 재계산되지 않음
+
+#### 시도 2: useEffect로 initialY 업데이트
+
+```typescript
+const [initialY, setInitialY] = useState(57);
+
+useEffect(() => {
+  const updateInitialY = () => {
+    const toolbarHeight = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--board-toolbar-height')
+    ) || 57;
+    setInitialY(toolbarHeight);
+  };
+  
+  updateInitialY();
+  const intervalId = setInterval(updateInitialY, 100);
+  
+  return () => clearInterval(intervalId);
+}, []);
+```
+
+**결과**: 부분 성공 - `initialY`는 업데이트되지만 `useDraggable`은 이미 초기화됨
+
+#### 시도 3: useDraggable의 initialPosition을 동적으로 업데이트
+
+```typescript
+const { position, setPosition } = useDraggable({
+  initialPosition: { x: 16, y: initialY },
+  // ...
+});
+
+useEffect(() => {
+  if (initialY > 50) {
+    setPosition({ x: position.x, y: initialY });
+  }
+}, [initialY]);
+```
+
+**결과**: 실패 - 무한 루프 발생 (`position`이 dependency에 포함되어 계속 업데이트)
+
+#### 시도 4: 실제 DOM transform 값 확인 및 조정 (최종 해결)
+
+```typescript
+useEffect(() => {
+  if (typeof window !== 'undefined' && isMounted && initialY > 50) {
+    const timeoutId = setTimeout(() => {
+      const element = dragHandlers.ref.current;
+      let actualY = 0;
+      
+      if (element) {
+        const transform = element.style.transform;
+        if (transform) {
+          const match = transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+          if (match) {
+            actualY = parseFloat(match[2]) || 0;
+          }
+        }
+      }
+      
+      // 실제 DOM 위치가 보드 툴바 위에 있으면 보드 툴바 아래로 이동
+      if (actualY < initialY) {
+        const newPosition = { x: actualX || 16, y: initialY };
+        setPositionRef.current(newPosition);
+      }
+    }, 200);
+    
+    return () => clearTimeout(timeoutId);
+  }
+}, [isMounted, initialY]);
+```
+
+**결과**: 성공 ✅
+
+### 최종 해결 방법
+
+#### 핵심 아이디어
+
+1. **CSS 변수 변경 감지**: `MutationObserver`와 `setInterval`을 사용하여 `--board-toolbar-height` 변경 감지
+2. **initialY를 state로 관리**: `useState`로 관리하여 변경 시 재렌더링 유도
+3. **실제 DOM 위치 확인**: React state 대신 실제 DOM의 `transform` 값을 확인
+4. **setPosition ref 사용**: `useRef`로 `setPosition` 참조를 유지하여 무한 루프 방지
+
+#### 구현 코드
+
+**1. initialY를 state로 관리 및 CSS 변수 변경 감지**
+
+```typescript
+// 보드 툴바 높이를 상태로 관리 (CSS 변수 변경 감지)
+const [initialY, setInitialY] = useState(() => {
+  if (typeof window !== 'undefined') {
+    const toolbarHeight = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--board-toolbar-height')
+    ) || 57;
+    return toolbarHeight;
+  }
+  return 0;
+});
+
+// CSS 변수 변경 감지 및 initialY 업데이트
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const updateInitialY = () => {
+    const toolbarHeight = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue('--board-toolbar-height')
+    ) || 57;
+    
+    setInitialY((prev) => {
+      if (prev !== toolbarHeight) {
+        return toolbarHeight;
+      }
+      return prev;
+    });
+  };
+
+  // 초기 업데이트
+  updateInitialY();
+
+  // MutationObserver로 CSS 변수 변경 감지
+  const observer = new MutationObserver(() => {
+    updateInitialY();
+  });
+
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['style'],
+  });
+
+  // 주기적으로 체크 (fallback)
+  const intervalId = setInterval(updateInitialY, 500);
+
+  return () => {
+    observer.disconnect();
+    clearInterval(intervalId);
+  };
+}, []);
+```
+
+**2. setPosition ref 사용**
+
+```typescript
+const setPositionRef = useRef(setPosition);
+
+// setPosition ref를 항상 최신으로 유지
+useEffect(() => {
+  setPositionRef.current = setPosition;
+}, [setPosition]);
+```
+
+**3. 실제 DOM 위치 확인 및 조정**
+
+```typescript
+// initialY가 변경될 때마다 위치를 올바르게 설정
+useEffect(() => {
+  if (typeof window !== 'undefined' && isMounted && initialY > 50) {
+    const timeoutId = setTimeout(() => {
+      // 실제 DOM의 transform 값을 확인
+      const element = dragHandlers.ref.current;
+      let actualY = 0;
+      let actualX = 16;
+      
+      if (element) {
+        const transform = element.style.transform;
+        if (transform) {
+          // transform: translate(16px, 71px) 형식에서 X, Y 값 추출
+          const match = transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+          if (match) {
+            actualX = parseFloat(match[1]) || 16;
+            actualY = parseFloat(match[2]) || 0;
+          }
+        }
+      }
+      
+      // 실제 DOM 위치가 보드 툴바 위에 있으면 보드 툴바 아래로 이동
+      if (actualY < initialY) {
+        const newPosition = { x: actualX || 16, y: initialY };
+        setPositionRef.current(newPosition);
+      }
+    }, 200); // useDraggable의 useEffect와 보드 툴바 마운트를 고려한 지연
+
+    return () => clearTimeout(timeoutId);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isMounted, initialY]); // position을 dependency에서 제거하여 무한 루프 방지
+```
+
+**4. onMouseDown에서도 위치 확인**
+
+```typescript
+onMouseDown={(e) => {
+  // ... 드래그 시작 로직 ...
+  
+  // 현재 위치가 보드 툴바 위에 있으면 조정
+  const element = dragHandlers.ref.current;
+  if (element) {
+    const transform = element.style.transform;
+    if (transform) {
+      const match = transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+      if (match) {
+        const actualY = parseFloat(match[2]) || 0;
+        if (actualY < initialY) {
+          setPositionRef.current({ x: parseFloat(match[1]) || 16, y: initialY });
+        }
+      }
+    }
+  }
+}}
+```
+
+### MutationObserver와 setInterval 설명
+
+**MutationObserver**: DOM 속성 변경을 감지하는 Web API
+- `document.documentElement`의 `style` 속성 변경 감지
+- CSS 변수(`--board-toolbar-height`)가 변경되면 `style` 속성이 업데이트됨
+- 하지만 CSS 변수 변경만으로는 `style` 속성이 변경되지 않을 수 있음
+
+**setInterval (Fallback)**: 주기적으로 CSS 변수 값 확인
+- `MutationObserver`가 감지하지 못하는 경우를 대비
+- 500ms마다 CSS 변수 값을 확인하여 변경 사항 감지
+
+### 교훈
+
+1. **CSS 변수와 React state 동기화**
+   - CSS 변수는 React의 반응성 시스템 밖에 있음
+   - `MutationObserver`와 `setInterval`을 사용하여 변경 감지 필요
+   - 변경 감지 후 React state로 동기화
+
+2. **초기화 타이밍 문제**
+   - 여러 컴포넌트가 서로 의존하는 경우 초기화 순서가 중요
+   - `useEffect`와 `setTimeout`을 사용하여 초기화 순서 제어
+   - `isMounted` 플래그로 클라이언트 사이드에서만 실행 보장
+
+3. **DOM 직접 조작과 React state 분리**
+   - `useDraggable`이 DOM의 `transform`을 직접 조작
+   - React state(`position`)와 실제 DOM 위치가 불일치할 수 있음
+   - 실제 DOM 위치를 확인하여 조정하는 로직 필요
+
+4. **무한 루프 방지**
+   - `position` state를 dependency에 포함하면 무한 루프 발생
+   - `useRef`로 함수 참조를 유지하여 dependency에서 제외
+   - 실제 DOM 값을 확인하여 필요한 경우에만 업데이트
+
+5. **디버깅 전략**
+   - 실제 DOM의 `transform` 값을 확인
+   - React state와 실제 DOM 위치 비교
+   - `console.log`로 초기화 순서 추적 (개발 환경에서만)
+
+### 관련 파일
+
+- `src/widgets/collaboration-widget/ui/collaboration-widget.tsx` - 협업 위젯 컴포넌트
+- `src/widgets/board-toolbar/ui/board-toolbar.tsx` - 보드 툴바 (CSS 변수 설정)
+- `src/shared/lib/use-draggable.ts` - 드래그 가능한 요소 훅
+
+### 참고 자료
+
+- [MDN MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver)
+- [MDN CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)
+- [React useRef 문서](https://react.dev/reference/react/useRef)
+
+---
+
+**마지막 업데이트**: 2025년 1월
 

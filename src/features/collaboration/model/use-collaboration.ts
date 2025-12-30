@@ -64,16 +64,17 @@ export const useCollaboration = ({
         const state = channel.presenceState();
         const cursorList: CursorPosition[] = [];
 
-        Object.values(state).forEach((presences: any[]) => {
-          presences.forEach((presence: any) => {
+        Object.values(state).forEach((presences: unknown[]) => {
+          presences.forEach((presence: unknown) => {
             // 자신의 커서는 제외
-            if (presence.userId !== currentUserId) {
+            const p = presence as { userId?: string; userName?: string | null; x?: number; y?: number; color?: string };
+            if (p.userId && p.userId !== currentUserId) {
               cursorList.push({
-                userId: presence.userId,
-                userName: presence.userName || 'Anonymous',
-                x: presence.x || 0,
-                y: presence.y || 0,
-                color: presence.color || generateUserColor(presence.userId),
+                userId: p.userId,
+                userName: p.userName || 'Anonymous',
+                x: p.x || 0,
+                y: p.y || 0,
+                color: p.color || generateUserColor(p.userId),
               });
             }
           });

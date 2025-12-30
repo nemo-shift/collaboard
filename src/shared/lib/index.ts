@@ -13,5 +13,6 @@ export { useThemeStore } from './use-theme-store';
 export { useTheme } from './use-theme';
 export { createUniqueUserList } from './user-list-utils';
 export type { UserInfo } from './user-list-utils';
+export { logger } from './logger';
 // export { debounce } from './debounce';
 

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { Board } from '@entities/board';
-import { formatDate } from '@shared/lib';
+import { formatDate, logger } from '@shared/lib';
 import { toggleBoardStar, toggleBoardPin, deleteBoard } from '@features/board/api';
 import { useAuth } from '@features/auth';
 import { ConfirmDialog } from '@shared/ui';
@@ -34,7 +34,7 @@ export const BoardCard = ({ board, onUpdate }: BoardCardProps) => {
       await toggleBoardStar(board.id, user.id);
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to toggle star:', error);
+      logger.error('Failed to toggle star:', error);
     } finally {
       setIsTogglingStar(false);
     }
@@ -51,7 +51,7 @@ export const BoardCard = ({ board, onUpdate }: BoardCardProps) => {
       await toggleBoardPin(board.id, user.id);
       onUpdate?.();
     } catch (error) {
-      console.error('Failed to toggle pin:', error);
+      logger.error('Failed to toggle pin:', error);
     } finally {
       setIsTogglingPin(false);
     }
@@ -72,7 +72,7 @@ export const BoardCard = ({ board, onUpdate }: BoardCardProps) => {
       onUpdate?.();
       setShowDeleteConfirm(false);
     } catch (error) {
-      console.error('Failed to delete board:', error);
+      logger.error('Failed to delete board:', error);
       alert('보드 삭제에 실패했습니다.');
     } finally {
       setIsDeleting(false);

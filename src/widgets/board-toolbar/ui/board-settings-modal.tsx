@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@shared/ui';
-import { useTheme } from '@shared/lib';
+import { useTheme, logger } from '@shared/lib';
 
 interface BoardSettingsModalProps {
   isOpen: boolean;
@@ -45,7 +45,7 @@ export const BoardSettingsModal = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       onClose();
     } catch (error) {
-      console.error('Failed to update board settings:', error);
+      logger.error('Failed to update board settings:', error);
       alert('설정 저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
@@ -64,7 +64,7 @@ export const BoardSettingsModal = ({
           <h2 className={`text-2xl font-bold ${classes.text}`}>보드 설정</h2>
           <button
             onClick={handleCancel}
-            className={`${classes.textTertiary} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
+            className={`${classes.textMuted} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
             disabled={isSaving || isLoading}
           >
             <svg
@@ -84,17 +84,17 @@ export const BoardSettingsModal = ({
         </div>
 
         {boardName && (
-          <p className={`${classes.textSecondary} mb-6`}>
+          <p className={`${classes.textMuted} mb-6`}>
             <span className="font-semibold">{boardName}</span> 보드 설정
           </p>
         )}
 
         <div className="space-y-6">
           {/* 현재 상태 표시 */}
-          <div className={`p-4 ${classes.bgSecondary} ${classes.border} rounded-lg`}>
+          <div className={`p-4 ${classes.bgSurfaceSubtle} ${classes.border} rounded-lg`}>
             <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${classes.textSecondary}`}>현재 상태:</span>
-              <span className={`text-sm font-semibold ${isPublic ? 'text-blue-600 dark:text-blue-400' : classes.textSecondary}`}>
+              <span className={`text-sm font-medium ${classes.textMuted}`}>현재 상태:</span>
+              <span className={`text-sm font-semibold ${isPublic ? 'text-blue-600 dark:text-blue-400' : classes.textMuted}`}>
                 {isPublic ? '공개 보드' : '비공개 보드'}
               </span>
             </div>
@@ -102,7 +102,7 @@ export const BoardSettingsModal = ({
 
           {/* 공개/비공개 설정 */}
           <div>
-            <label className={`block text-sm font-medium ${classes.textSecondary} mb-3`}>
+            <label className={`block text-sm font-medium ${classes.textMuted} mb-3`}>
               공개 설정 변경
             </label>
             <div className="space-y-3">
@@ -122,7 +122,7 @@ export const BoardSettingsModal = ({
                   className={`w-4 h-4 ${classes.text} focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-2 ${
                     localIsPublic 
                       ? 'border-0 outline-none [&]:border-0' 
-                      : classes.borderSecondary
+                      : classes.border
                   }`}
                   style={localIsPublic ? { 
                     border: 'none !important', 
@@ -158,7 +158,7 @@ export const BoardSettingsModal = ({
                   className={`w-4 h-4 ${classes.text} focus:ring-gray-900 dark:focus:ring-gray-100 focus:ring-2 ${
                     !localIsPublic 
                       ? 'border-0 outline-none [&]:border-0' 
-                      : classes.borderSecondary
+                      : classes.border
                   }`}
                   style={!localIsPublic ? { 
                     border: 'none !important', 
