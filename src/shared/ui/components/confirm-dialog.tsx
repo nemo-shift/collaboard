@@ -65,13 +65,15 @@ export const ConfirmDialog = ({
         <h3 className={`text-xl font-semibold mb-4 ${classes.text}`}>{title}</h3>
         <p className={`mb-6 leading-relaxed ${classes.textBody}`}>{message}</p>
         <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="px-6 py-2.5"
-          >
-            {cancelText}
-          </Button>
+          {cancelText && (
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              className="px-6 py-2.5"
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
             ref={confirmButtonRef}
             variant="primary"

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Button, InviteModal, Tooltip } from '@shared/ui';
+import { Button, InviteModal, Tooltip, ConfirmDialog } from '@shared/ui';
 import { BoardSettingsModal } from './board-settings-modal';
 import { useEditableField } from '@features/board';
 import { useTheme } from '@shared/lib';
@@ -44,13 +44,28 @@ export const BoardToolbar = ({
 }: BoardToolbarProps) => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isPrivateBoardWarningOpen, setIsPrivateBoardWarningOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
+  // 모바일 감지 (640px 미만 = Tailwind sm 브레이크포인트)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // 모달 상태 변경 시 상위 컴포넌트에 알림
   useEffect(() => {
     if (onModalStateChange) {
-      onModalStateChange(isInviteModalOpen || isSettingsModalOpen);
+      onModalStateChange(isInviteModalOpen || isSettingsModalOpen || isPrivateBoardWarningOpen);
     }
-  }, [isInviteModalOpen, isSettingsModalOpen, onModalStateChange]);
+  }, [isInviteModalOpen, isSettingsModalOpen, isPrivateBoardWarningOpen, onModalStateChange]);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // 보드 툴바 높이를 CSS 변수로 설정 (동적 측정)
@@ -371,7 +386,7 @@ export const BoardToolbar = ({
         >
           <Button 
             variant="secondary" 
-            className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5"
+            className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 ${!isPublic && isMobile ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -379,9 +394,16 @@ export const BoardToolbar = ({
                 onEditBlocked();
                 return;
               }
+              
+              // 모바일에서만 비공개 보드일 때 경고창 표시
+              if (isMobile && !isPublic) {
+                setIsPrivateBoardWarningOpen(true);
+                return;
+              }
+              
               setIsInviteModalOpen(true);
             }}
-            disabled={!isPublic}
+            disabled={!isPublic && !isMobile} // PC에서는 비공개일 때 disabled, 모바일에서는 클릭 가능
           >
             <span className="hidden sm:inline">초대</span>
             <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,6 +450,19 @@ export const BoardToolbar = ({
             }
           }}
           isLoading={isSaving}
+        />
+      )}
+
+      {/* 모바일에서만: 비공개 보드 초대 경고 다이얼로그 */}
+      {isMobile && (
+        <ConfirmDialog
+          isOpen={isPrivateBoardWarningOpen}
+          title="초대 불가"
+          message="비공개 보드는 초대할 수 없습니다. 보드를 공개로 설정한 후 초대 링크를 생성할 수 있습니다."
+          confirmText="확인"
+          cancelText=""
+          onConfirm={() => setIsPrivateBoardWarningOpen(false)}
+          onCancel={() => setIsPrivateBoardWarningOpen(false)}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
 interface TooltipProps {
   children: ReactNode;
@@ -16,8 +16,23 @@ export const Tooltip = ({
   disabled = false,
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  if (disabled || !content) {
+  // 모바일 감지 (640px 미만 = Tailwind sm 브레이크포인트)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 모바일이거나 disabled면 툴팁 비활성화
+  if (disabled || !content || isMobile) {
     return <>{children}</>;
   }
 
