@@ -26,6 +26,22 @@ export async function generateMetadata({
         title: `${board.name} - CollaBoard`,
         description: board.description || '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
         type: 'website',
+        url: `https://go-collaboard.vercel.app/board/${boardId}`,
+        siteName: 'CollaBoard',
+        images: [
+          {
+            url: 'https://go-collaboard.vercel.app/opengraph-image.png',
+            width: 1200,
+            height: 630,
+            alt: `${board.name} - CollaBoard`,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: `${board.name} - CollaBoard`,
+        description: board.description || '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
+        images: ['https://go-collaboard.vercel.app/opengraph-image.png'],
       },
     };
   } catch {

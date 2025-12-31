@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://go-collaboard.vercel.app/sitemap.xml
+
+# Disallow private/admin routes if any
+Disallow: /api/
+Disallow: /auth/reset-password
+Disallow: /auth/reset-request
+
