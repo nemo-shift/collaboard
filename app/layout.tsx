@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://go-collaboard.vercel.app'),
-  title: "CollaBoard - 실시간으로 협업보드",
+  title: "CollaBoard 실시간 협업보드",
   description: "아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드",
   keywords: ['화이트보드', '협업', '아이디어', '실시간', '온라인', 'whiteboard', 'collaboration', 'collaboard'],
   authors: [{ name: 'CollaBoard' }],
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     locale: 'ko_KR',
     url: 'https://go-collaboard.vercel.app',
     siteName: 'CollaBoard',
-    title: 'CollaBoard - 아이디어를 실시간으로 공유하는 화이트보드',
+    title: "CollaBoard 실시간 협업보드",
     description: '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
     images: [
       {
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CollaBoard - 아이디어를 실시간으로 공유하는 화이트보드',
+    title: 'CollaBoard 실시간으로 협업보드',
     description: '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
     images: ['/opengraph-image.png'],
   },
