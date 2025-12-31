@@ -24,6 +24,8 @@ export const BoardPage = () => {
   const [isPrivateBoardModalOpen, setIsPrivateBoardModalOpen] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: ToastType; duration?: number }>>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMobileBannerVisible, setIsMobileBannerVisible] = useState(false);
 
   // 어나니머스 사용자 ID (localStorage에 저장하여 일관성 유지)
   const anonymousUserId = useMemo(() => generateAnonymousUserId(), []);
@@ -91,6 +93,43 @@ export const BoardPage = () => {
     board,
     setBoard,
   });
+
+  // 모바일 감지 및 배너 표시 여부 확인
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+      
+      // 모바일이고, "다시 보지 않기"를 선택하지 않았으면 배너 표시
+      if (mobile) {
+        const dismissed = localStorage.getItem('mobile-banner-dismissed') === 'true';
+        setIsMobileBannerVisible(!dismissed);
+      } else {
+        setIsMobileBannerVisible(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 배너 닫기 (일시)
+  const handleBannerClose = useCallback(() => {
+    setIsMobileBannerVisible(false);
+    // 배너가 닫히면 CSS 변수 제거
+    document.documentElement.style.setProperty('--mobile-banner-height', '0px');
+  }, []);
+
+  // 배너 영구 닫기
+  const handleBannerDismiss = useCallback(() => {
+    setIsMobileBannerVisible(false);
+    localStorage.setItem('mobile-banner-dismissed', 'true');
+    // 배너가 닫히면 CSS 변수 제거
+    document.documentElement.style.setProperty('--mobile-banner-height', '0px');
+  }, []);
 
   // 현재 사용자가 보드 소유자인지 확인 (메모이제이션)
   const isOwner = useMemo(() => {
@@ -237,10 +276,80 @@ export const BoardPage = () => {
         onEditBlocked={() => setIsSignupModalOpen(true)}
       />
 
+      {/* 모바일 안내 배너 */}
+      {isMobile && isMobileBannerVisible && (
+        <div 
+          className={`fixed left-0 right-0 z-30 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 px-4 py-2.5 flex items-center gap-2 animate-slide-down shadow-sm`}
+          style={{ 
+            top: `calc(64px + var(--board-toolbar-height, 57px))`,
+          }}
+          ref={(el) => {
+            // 배너 높이를 CSS 변수로 설정
+            if (el) {
+              const height = el.offsetHeight;
+              document.documentElement.style.setProperty('--mobile-banner-height', `${height}px`);
+            }
+          }}
+        >
+          {/* 스마트폰 아이콘 */}
+          <svg
+            className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
+          </svg>
+          
+          {/* 안내 문구 */}
+          <p className="text-xs text-yellow-800 dark:text-yellow-200 flex-1">
+            모바일 환경에서는 일부 기능이 제한될 수 있습니다. 원활한 이용을 위해 PC 사용을 권장드립니다.
+          </p>
+          
+          {/* 버튼 그룹 */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleBannerDismiss}
+              className="text-xs text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 underline transition-colors px-2 py-1"
+              aria-label="다시 보지 않기"
+            >
+              다시 보지 않기
+            </button>
+            <button
+              onClick={handleBannerClose}
+              className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200 transition-colors p-1"
+              aria-label="닫기"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 보드 캔버스 - fixed 툴바 아래에 위치하도록 여백 추가 (헤더 64px + 보드 툴바 높이) */}
       <div 
-        className="flex-1 relative" 
+        className="flex-1 relative transition-all duration-300 ease-out" 
         data-board-canvas
+        style={{
+          marginTop: isMobile && isMobileBannerVisible ? '40px' : '0',
+        }}
       >
         {/* 협업 위젯 - 보드 위에 플로팅 */}
         {!isModalOpen && (
@@ -276,10 +385,12 @@ export const BoardPage = () => {
 
       {/* 추가 모드 안내 */}
       {addMode && (
-        <div className={`absolute bottom-4 left-4 ${classes.bg} ${classes.border} rounded-lg shadow-lg px-4 py-2 text-sm ${classes.textMuted}`}>
+        <div className={`absolute bottom-4 left-4 right-4 sm:right-auto ${classes.bg} ${classes.border} rounded-lg shadow-lg px-3 sm:px-4 py-2 text-xs sm:text-sm ${classes.textMuted}`}>
           {addMode === 'note'
             ? '캔버스를 클릭하여 포스트잇을 추가하세요'
-            : '이미지를 선택한 후 캔버스를 클릭하세요'}
+            : addMode === 'image'
+            ? '이미지를 선택한 후 캔버스를 클릭하세요'
+            : '캔버스를 클릭하여 텍스트를 추가하세요'}
         </div>
       )}
 

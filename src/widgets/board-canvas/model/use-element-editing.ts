@@ -50,6 +50,53 @@ export const useElementEditing = ({
     }
   }, [elements, canEdit, onEditBlocked]);
 
+  // 더블탭으로 포스트잇 편집 시작 (모바일)
+  const lastTapRef = useRef<{ time: number; elementId: string | null }>({ time: 0, elementId: null });
+  const handleDoubleTap = useCallback((e: React.TouchEvent, elementId: string) => {
+    e.stopPropagation();
+    
+    // 편집 권한 체크
+    if (!canEdit) {
+      if (onEditBlocked) {
+        onEditBlocked();
+      }
+      return;
+    }
+    
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current.time;
+    const sameElement = lastTapRef.current.elementId === elementId;
+    
+    // 300ms 이내에 같은 요소를 두 번 탭하면 더블탭으로 인식
+    if (timeDiff < 300 && sameElement) {
+      const element = elements.find((el) => el.id === elementId);
+      if (element && (element.type === 'note' || element.type === 'text')) {
+        setEditingElement(elementId);
+        setEditContent(element.content);
+        lastTapRef.current = { time: 0, elementId: null }; // 리셋
+      }
+    } else {
+      lastTapRef.current = { time: now, elementId };
+    }
+  }, [elements, canEdit, onEditBlocked]);
+
+  // 편집 버튼 클릭 핸들러
+  const handleEditButtonClick = useCallback((elementId: string) => {
+    // 편집 권한 체크
+    if (!canEdit) {
+      if (onEditBlocked) {
+        onEditBlocked();
+      }
+      return;
+    }
+    
+    const element = elements.find((el) => el.id === elementId);
+    if (element && (element.type === 'note' || element.type === 'text')) {
+      setEditingElement(elementId);
+      setEditContent(element.content);
+    }
+  }, [elements, canEdit, onEditBlocked]);
+
   // 편집 완료
   const handleEditComplete = useCallback(() => {
     if (editingElement) {
@@ -126,6 +173,8 @@ export const useElementEditing = ({
     textareaRef,
     contentEditableRef,
     handleDoubleClick,
+    handleDoubleTap,
+    handleEditButtonClick,
     handleEditComplete,
     handleCanvasClick,
   };

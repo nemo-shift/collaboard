@@ -2,11 +2,12 @@
 
 아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드
 
-> **최신 업데이트**: 2025년 1월 - 코드 최적화 및 타입 안정성 개선 완료
+> **최신 업데이트**: 2025년 1월 - 모바일 반응형 지원, SEO 최적화, 성능 개선 완료
 
 ## 주요 기능
 
 - ✅ **실시간 협업**: 여러 사용자가 동시에 작업하고 변경사항이 즉시 반영
+- ✅ **모바일 반응형**: 모바일 환경에서도 최적화된 UI/UX 제공
 - ✅ **다크모드**: 라이트/다크 모드 전환 지원 (Tailwind CSS v4)
 - ✅ **포스트잇**: 다양한 색상의 포스트잇 생성, 편집, 삭제
 - ✅ **텍스트 요소**: 리치 텍스트 에디터 (굵게, 기울임, 밑줄, 취소선, 색상, 하이라이트)
@@ -16,6 +17,7 @@
 - ✅ **미니맵**: 캔버스 전체를 한눈에 볼 수 있는 미니맵
 - ✅ **무한 캔버스**: 드래그로 자유롭게 이동하는 무한 캔버스
 - ✅ **Blob Cursor**: 랜딩 페이지에서만 활성화되는 부드러운 blob 형태의 커서
+- ✅ **SEO 최적화**: OG 이미지, favicon, sitemap, robots.txt 설정 완료
 
 ## 기술 스택
 
@@ -28,19 +30,41 @@
 
 ## 최근 업데이트 (2025년 1월)
 
+### 모바일 반응형 지원
+- ✅ **모바일 UI 최적화**: 보드 툴바, 협업 위젯, 미니맵 모바일 레이아웃
+- ✅ **터치 제스처**: 모바일에서 캔버스 패닝 지원 (터치 드래그)
+- ✅ **더블 탭 편집**: 모바일에서 요소 더블 탭으로 편집 모드 진입
+- ✅ **모바일 배너**: 모바일 환경 제한 사항 안내 배너
+- ✅ **반응형 랜딩 페이지**: 메인 타이틀 및 화이트보드 데모 섹션 모바일 최적화
+
+### SEO 및 메타데이터
+- ✅ **OG 이미지**: 소셜 미디어 공유 시 미리보기 이미지
+- ✅ **Favicon**: 다양한 디바이스 및 크기에 맞춘 28개 favicon 파일
+- ✅ **Sitemap**: 검색 엔진 크롤링을 위한 동적 sitemap 생성
+- ✅ **Robots.txt**: 검색 엔진 크롤러 가이드 설정
+- ✅ **메타 태그**: Open Graph, Twitter Card 메타 태그 완비
+
 ### 코드 최적화
 - ✅ **커스텀 훅 리팩토링**: `board-canvas.tsx`를 세 개의 훅으로 분리
-  - `useCanvasPanning`: 캔버스 패닝 로직
+  - `useCanvasPanning`: 캔버스 패닝 로직 (모바일 터치 지원)
   - `useElementInteraction`: 요소 드래그, 리사이즈, 선택 로직
-  - `useElementEditing`: 요소 편집 로직
+  - `useElementEditing`: 요소 편집 로직 (더블 탭 지원)
 - ✅ **타입 안정성 개선**: 모든 `any` 타입 제거, 엄격한 타입 체크
 - ✅ **성능 최적화**: `React.memo`, `useMemo`, `useCallback` 적절히 사용
+  - BoardStats 컴포넌트 메모이제이션
+  - 아이콘 컴포넌트 분리 및 재사용
 - ✅ **빌드 최적화**: Next.js 컴파일러 최적화 설정 추가
+
+### UI/UX 개선
+- ✅ **다크모드 개선**: 모달, 버튼 다크모드 스타일 일관성 개선
+- ✅ **대시보드 통계**: 모바일에서 토글 버튼 형태로 표시
+- ✅ **접근성**: `aria-label` 속성 추가로 스크린 리더 지원
 
 ### 주요 버그 수정
 - ✅ **캔버스 패닝 문제 해결**: 훅 리팩토링 후 발생한 패닝 이슈 해결
 - ✅ **타입 오류 수정**: 빌드 시 발생하던 모든 타입 오류 해결
 - ✅ **인증 에러 메시지 한국어 번역**: 사용자 친화적인 에러 메시지 제공
+- ✅ **Next.js 빌드 에러**: `pages` 디렉토리와 `app` 디렉토리 충돌 해결
 
 ## 프로젝트 구조
 
@@ -48,12 +72,12 @@
 
 ```
 src/
-├── app/          # App Layer (프로바이더)
-├── pages/        # Pages Layer (페이지 컴포넌트)
-├── widgets/      # Widgets Layer (복합 UI 블록)
-├── features/     # Features Layer (비즈니스 기능)
-├── entities/     # Entities Layer (비즈니스 엔티티)
-└── shared/       # Shared Layer (공유 리소스)
+├── app/              # App Layer (프로바이더)
+├── page-components/  # Pages Layer (페이지 컴포넌트)
+├── widgets/          # Widgets Layer (복합 UI 블록)
+├── features/         # Features Layer (비즈니스 기능)
+├── entities/         # Entities Layer (비즈니스 엔티티)
+└── shared/           # Shared Layer (공유 리소스)
 ```
 
 ## 문서
@@ -189,6 +213,17 @@ npm run lint:strict
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 3. 배포 자동 완료
+
+**배포 URL**: [https://go-collaboard.vercel.app](https://go-collaboard.vercel.app)
+
+### SEO 최적화
+
+프로젝트에는 다음 SEO 최적화가 포함되어 있습니다:
+- ✅ **OG 이미지**: 소셜 미디어 공유 시 미리보기 (`/opengraph-image.png`)
+- ✅ **Favicon**: 다양한 디바이스 지원 (28개 파일)
+- ✅ **Sitemap**: 동적 sitemap 생성 (`/sitemap.xml`)
+- ✅ **Robots.txt**: 검색 엔진 크롤러 가이드 (`/robots.txt`)
+- ✅ **메타 태그**: Open Graph, Twitter Card 완비
 
 ### 다른 플랫폼 배포
 

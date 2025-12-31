@@ -42,7 +42,7 @@ export const InteractiveDemoSection = () => {
         
         {/* Whiteboard Demo */}
         <div className={`relative ${classes.bg} rounded-2xl ${classes.border} shadow-2xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] overflow-hidden`}>
-          <div className={`relative min-h-[500px] p-8 lg:p-12 ${classes.bgSurfaceSubtle}`}>
+          <div className={`relative min-h-[400px] sm:min-h-[500px] lg:min-h-[600px] p-4 sm:p-6 md:p-8 lg:p-12 ${classes.bgSurfaceSubtle}`}>
             {/* Grid Background - 라이트모드용 검은색 그리드 */}
           <div
               className="absolute inset-0 opacity-[0.06] dark:opacity-0"
@@ -78,13 +78,14 @@ export const InteractiveDemoSection = () => {
                   추가해보세요
                 </>
               }
-              position={{ top: '4rem', left: '4rem' }}
-              size={{ width: '10rem', height: '10rem' }}
+              position={{ top: '1rem', left: '1rem' }}
+              size={{ width: '8rem', height: '8rem' }}
               rotation={-4}
               hoveredNote={hoveredNote}
               onMouseEnter={() => setHoveredNote(1)}
               onMouseLeave={() => setHoveredNote(null)}
               leadingRelaxed
+              className="sm:!top-16 sm:!left-16 sm:!w-40 sm:!h-40"
             />
 
             <DemoPostit
@@ -97,12 +98,13 @@ export const InteractiveDemoSection = () => {
                   <br />• 작업 3
                 </>
               }
-              position={{ top: '4rem', right: '6rem' }}
-              size={{ width: '9rem', height: '9rem' }}
+              position={{ top: '1rem', right: '1rem' }}
+              size={{ width: '7rem', height: '7rem' }}
               rotation={3}
               hoveredNote={hoveredNote}
               onMouseEnter={() => setHoveredNote(2)}
               onMouseLeave={() => setHoveredNote(null)}
+              className="sm:!top-16 sm:!right-24 sm:!w-36 sm:!h-36"
             />
 
             <DemoPostit
@@ -117,13 +119,14 @@ export const InteractiveDemoSection = () => {
                 정리하세요
                 </>
               }
-              position={{ bottom: '7rem', left: '6rem' }}
-              size={{ width: '11rem', height: '10rem' }}
+              position={{ bottom: '3rem', left: '1rem' }}
+              size={{ width: '9rem', height: '8rem' }}
               rotation={2}
               hoveredNote={hoveredNote}
               onMouseEnter={() => setHoveredNote(3)}
               onMouseLeave={() => setHoveredNote(null)}
               leadingRelaxed
+              className="sm:!bottom-28 sm:!left-24 sm:!w-44 sm:!h-40"
             />
 
             {/* 가운데 포스트잇 추가 */}
@@ -138,12 +141,13 @@ export const InteractiveDemoSection = () => {
                 </>
               }
               position={{ top: '50%', left: '50%' }}
-              size={{ width: '9rem', height: '9rem' }}
+              size={{ width: '7rem', height: '7rem' }}
               rotation={-2}
               hoveredNote={hoveredNote}
               onMouseEnter={() => setHoveredNote(4)}
               onMouseLeave={() => setHoveredNote(null)}
               transform="translate(-50%, -50%) rotate(-2deg)"
+              className="sm:!w-36 sm:!h-36"
             />
 
             {/* 새 포스트잇 애니메이션 */}
@@ -152,21 +156,21 @@ export const InteractiveDemoSection = () => {
                 id={5}
                 title="✨ 새 아이디어"
                 content="실시간으로 추가됨"
-                position={{ top: '11rem', right: '7rem' }}
-                size={{ width: '8rem', height: '8rem' }}
+                position={{ top: '8rem', right: '1rem' }}
+                size={{ width: '6rem', height: '6rem' }}
                 rotation={5}
                 hoveredNote={null}
                 onMouseEnter={() => {}}
                 onMouseLeave={() => {}}
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+                className="animate-in fade-in slide-in-from-bottom-4 duration-500 sm:!top-44 sm:!right-28 sm:!w-32 sm:!h-32"
               />
             )}
 
             {/* Image Placeholder */}
-            <div className="absolute bottom-20 right-24 w-48 h-36 bg-[#F5F5F0] dark:bg-[#2A2A2A] rounded-sm border border-[#E0E0E0] dark:border-[#404040] shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex items-center justify-center" style={{ zIndex: 10 }}>
+            <div className="absolute bottom-4 right-4 sm:bottom-20 sm:right-24 w-32 h-24 sm:w-48 sm:h-36 bg-[#F5F5F0] dark:bg-[#2A2A2A] rounded-sm border border-[#E0E0E0] dark:border-[#404040] shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.6)] flex items-center justify-center" style={{ zIndex: 10 }}>
               <div className="text-center">
                 <svg
-                  className={`w-12 h-12 mx-auto ${classes.textMuted} mb-2`}
+                  className={`w-8 h-8 sm:w-12 sm:h-12 mx-auto ${classes.textMuted} mb-2`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -178,13 +182,13 @@ export const InteractiveDemoSection = () => {
                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
-                <span className={`text-sm ${classes.textMuted} font-medium`}>이미지 업로드</span>
+                <span className={`text-xs sm:text-sm ${classes.textMuted} font-medium`}>이미지 업로드</span>
               </div>
             </div>
 
-            {/* Connection Lines */}
+            {/* Connection Lines - 모바일에서 숨김 */}
             <svg
-              className="absolute inset-0 pointer-events-none"
+              className="absolute inset-0 pointer-events-none hidden sm:block"
               style={{ zIndex: 1 }}
             >
               <line
@@ -213,21 +217,24 @@ export const InteractiveDemoSection = () => {
             <CursorIndicator
               name="팀원 1"
               color="#3b82f6"
-              position={{ top: '135px', left: '300px' }}
+              position={{ top: '80px', left: '120px' }}
               transform="translate(-6px, -6px)"
+              className="sm:!top-[135px] sm:!left-[300px]"
             />
             <CursorIndicator
               name="팀원 2"
               color="#10b981"
-              position={{ bottom: '8rem', right: '25%' }}
+              position={{ bottom: '4rem', right: '15%' }}
               animationDelay="0.5s"
+              className="sm:!bottom-8 sm:!right-[25%]"
             />
             <CursorIndicator
               name="팀원 3"
               color="#a855f7"
               position={{ top: '50%', left: '50%' }}
-              transform="translate(-50%, calc(-50% - 120px))"
+              transform="translate(-50%, calc(-50% - 80px))"
               animationDelay="1s"
+              className="sm:!transform-[translate(-50%,calc(-50%-120px))]"
             />
           </div>
         </div>

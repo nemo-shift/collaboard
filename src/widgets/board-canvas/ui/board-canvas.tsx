@@ -54,6 +54,20 @@ export const BoardCanvas = ({
 }: BoardCanvasProps) => {
   const [scale, setScale] = useState<number>(CANVAS_CONSTANTS.DEFAULT_SCALE);
   const { classes } = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 모바일 감지 (640px 미만 = Tailwind sm 브레이크포인트)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // Refs
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -188,7 +202,12 @@ export const BoardCanvas = ({
     <div
       ref={canvasRef}
       className={`relative w-full h-full ${classes.bg} overflow-hidden cursor-grab active:cursor-grabbing`}
+      style={{ 
+        touchAction: 'none', // 모바일 스크롤 방지
+        cursor: addMode === 'note' || addMode === 'image' || addMode === 'text' ? 'crosshair' : 'grab'
+      }}
       onMouseDown={panning.handleMouseDown}
+      onTouchStart={panning.handleTouchStart}
       onMouseMove={(e) => {
         // 패닝 중이 아닐 때만 요소 드래그/리사이즈 처리
         // panning.isDragging은 비동기 상태이므로 ref를 사용하는 것이 더 안전하지만,
@@ -197,9 +216,26 @@ export const BoardCanvas = ({
           interaction.handleMouseMove(e);
         }
       }}
+      onTouchMove={(e) => {
+        // 모바일에서는 요소 드래그 비활성화
+        if (isMobile) return;
+        
+        // 패닝 중이 아닐 때만 요소 드래그/리사이즈 처리
+        if (!panning.isDragging) {
+          interaction.handleTouchMove(e);
+        }
+      }}
       onMouseUp={(e) => {
         // 패닝 중일 때는 이벤트를 무시하고 window 레벨 이벤트가 처리하도록 함
         // stopPropagation을 호출하지 않아서 window 레벨 mouseup이 발생하도록 함
+        if (panning.isDragging) {
+          return;
+        }
+        // 패닝 중이 아닐 때만 요소 드래그/리사이즈 종료 처리
+        interaction.handleMouseUp();
+      }}
+      onTouchEnd={(e) => {
+        // 패닝 중일 때는 이벤트를 무시하고 window 레벨 이벤트가 처리하도록 함
         if (panning.isDragging) {
           return;
         }
@@ -271,7 +307,6 @@ export const BoardCanvas = ({
         handleClick(e);
       }}
       onDoubleClick={editing.handleDoubleClick}
-      style={{ cursor: addMode === 'note' || addMode === 'image' || addMode === 'text' ? 'crosshair' : 'grab' }}
     >
       {/* 그리드 배경 */}
       <GridBackground offset={panning.offset} scale={scale} />
@@ -355,6 +390,35 @@ export const BoardCanvas = ({
                 
                 interaction.handleElementDragStart(e, element.id, element.position);
               }}
+              onTouchStart={isMobile ? undefined : (e) => {
+                // 모바일에서는 요소 드래그 비활성화 (패닝만 가능)
+                const target = e.target as HTMLElement;
+                if (target.classList.contains('resize-handle')) {
+                  // 리사이즈는 터치에서 지원하지 않음 (복잡함)
+                  return;
+                }
+                
+                if (isEditing) {
+                  e.stopPropagation();
+                  return;
+                }
+                
+                if (e.touches.length !== 1) return; // 단일 터치만
+                
+                if (element.type === 'text') {
+                  // 텍스트 요소는 자체 터치 핸들러가 있음
+                  return;
+                }
+                
+                interaction.handleElementTouchStart(e, element.id, element.position);
+              }}
+              onDoubleClick={editing.handleDoubleClick}
+              onTouchEnd={(e) => {
+                // 더블탭 처리
+                if (e.touches.length === 0 && (element.type === 'note' || element.type === 'text')) {
+                  editing.handleDoubleTap(e, element.id);
+                }
+              }}
             >
               {element.type === 'note' ? (
                 <NoteElement
@@ -398,6 +462,7 @@ export const BoardCanvas = ({
                   onDragStart={(e) => interaction.handleElementDragStart(e, element.id, element.position)}
                   contentEditableRef={editing.contentEditableRef}
                   onDoubleClick={editing.handleDoubleClick}
+                  onDoubleTap={editing.handleDoubleTap}
                   onSelect={interaction.handleElementSelect}
                   onBringForward={onElementZIndexChange && canEdit ? () => interaction.handleBringForward(element.id) : undefined}
                   onSendBackward={onElementZIndexChange && canEdit ? () => interaction.handleSendBackward(element.id) : undefined}

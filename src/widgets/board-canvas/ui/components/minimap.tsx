@@ -114,9 +114,9 @@ export const Minimap = ({
       <Tooltip content="미니맵 표시">
         <button
           type="button"
-          className={`fixed right-4 z-40 ${classes.bg} ${classes.border} rounded-full shadow-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-center`}
+          className={`fixed z-40 flex ${classes.bg} ${classes.border} rounded-full shadow-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors items-center justify-center right-4`}
           style={{ 
-            top: 'calc(64px + var(--board-toolbar-height, 57px))',
+            top: 'calc(64px + var(--board-toolbar-height, 57px) + var(--mobile-banner-height, 0px))',
             width: '40px',
             height: '40px',
           }}
@@ -144,9 +144,9 @@ export const Minimap = ({
   // 확장 모드
   return (
     <div
-      className={`fixed right-4 z-40 ${classes.bg} ${classes.border} rounded-lg shadow-lg p-1`}
+      className={`fixed z-40 block ${classes.bg} ${classes.border} rounded-lg shadow-lg p-1 right-4`}
       style={{ 
-        top: 'calc(64px + var(--board-toolbar-height, 57px))',
+        top: 'calc(64px + var(--board-toolbar-height, 57px) + var(--mobile-banner-height, 0px))',
         maxHeight: 'calc(100vh - 130px)' 
       }}
     >

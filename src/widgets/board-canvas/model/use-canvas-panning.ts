@@ -46,6 +46,11 @@ export const useCanvasPanning = ({
   const hasPannedRef = useRef(false); // ref로도 관리 (내부 로직용)
   const mouseMoveHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
   const mouseUpHandlerRef = useRef<(() => void) | null>(null);
+  const touchMoveHandlerRef = useRef<((e: TouchEvent) => void) | null>(null);
+  const touchEndHandlerRef = useRef<(() => void) | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isTouchDeviceRef = useRef(false); // 터치 디바이스 여부 추적
+  const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 터치 타임아웃
 
   // boardId가 변경될 때 offset 초기화
   useEffect(() => {
@@ -58,6 +63,15 @@ export const useCanvasPanning = ({
       canvasContainerRef.current.style.transform = `translate(0px, 0px)`;
     }
   }, [boardId, canvasContainerRef]);
+
+  // 컴포넌트 언마운트 시 타임아웃 정리
+  useEffect(() => {
+    return () => {
+      if (touchTimeoutRef.current) {
+        clearTimeout(touchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // offset 상태 변경 시 ref와 DOM 동기화 (리얼타임 업데이트 대응)
   // 다른 사용자의 패닝이 리얼타임으로 업데이트될 때 사용
@@ -100,9 +114,179 @@ export const useCanvasPanning = ({
     window.dispatchEvent(event);
   }, [offset, isDragging, scale]); // 의존성 배열 최소화 (ref 관련은 제거)
 
+  // 터치 이벤트와 마우스 이벤트 충돌 방지: 터치 이벤트 발생 시 일정 시간 동안 마우스 이벤트 무시
+  // ref는 의존성 배열에 넣지 않음 (항상 최신 값 참조)
+  // 대신 터치 이벤트 핸들러 내부에서 직접 처리
+
+  // 캔버스 드래그 (패닝) - 터치 이벤트 처리
+  // 리얼타임 협업 최적화: 드래그 중에는 직접 DOM 조작, 종료 시에만 상태 업데이트
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // 터치 디바이스로 표시하고 타임아웃 설정
+    isTouchDeviceRef.current = true;
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+    }
+    touchTimeoutRef.current = setTimeout(() => {
+      isTouchDeviceRef.current = false;
+      touchTimeoutRef.current = null;
+    }, 300); // 300ms 후 마우스 이벤트 다시 허용
+
+    // 협업 위젯 클릭은 무시
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-collaboration-widget]')) {
+      return;
+    }
+
+    // 요소, 버튼, 툴바 등을 클릭한 경우는 패닝하지 않음
+    if (
+      target.closest('[data-element-id]') ||
+      target.closest('button') ||
+      target.closest('[data-text-toolbar]') ||
+      target.closest('[data-color-picker]') ||
+      target.closest('.color-picker-popup') ||
+      target.closest('[data-text-element-display]')
+    ) {
+      return;
+    }
+
+    // 단일 터치만 처리 (다중 터치는 줌 등 다른 용도로 사용 가능)
+    if (e.touches.length !== 1) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    const isElement = target.closest('[data-element-id]');
+    const isButton = target.closest('button');
+    const isToolbar = target.closest('[data-text-toolbar]');
+    const isColorPicker = target.closest('[data-color-picker]') || target.closest('.color-picker-popup');
+    const isGridBackground = target.closest('.grid-background');
+    const isCanvas = target === canvasRef.current;
+
+    // 빈 공간에서만 패닝 가능
+    if (isCanvas || isGridBackground || (!isElement && !isButton && !isToolbar && !isColorPicker)) {
+      // touch-action: none이 적용되어 있으므로 preventDefault는 선택사항
+      // 하지만 추가 안전장치로 cancelable일 때만 호출
+      if (e.cancelable) {
+        e.preventDefault(); // 스크롤 방지
+      }
+
+      hasPannedRef.current = false;
+      setHasPanned(false);
+
+      const startPos = {
+        x: touch.clientX - offsetRef.current.x,
+        y: touch.clientY - offsetRef.current.y,
+      };
+      touchStartRef.current = startPos;
+      setDragStart(startPos);
+      dragStartRef.current = startPos;
+
+      isDraggingRef.current = true;
+      setIsDragging(true);
+
+      // 이전 리스너 제거
+      if (touchMoveHandlerRef.current) {
+        window.removeEventListener('touchmove', touchMoveHandlerRef.current);
+      }
+      if (touchEndHandlerRef.current) {
+        window.removeEventListener('touchend', touchEndHandlerRef.current);
+      }
+
+      const handleWindowTouchMove = (e: TouchEvent) => {
+        // 단일 터치만 처리
+        if (e.touches.length !== 1) {
+          return;
+        }
+
+        // 요소 드래그나 리사이즈가 시작되면 패닝 중단
+        const draggedRef = getRef(getDraggedElementRef, draggedElementRef);
+        const resizingRef = getRef(getResizingElementRef, resizingElementRef);
+        if (draggedRef?.current || resizingRef?.current || !isDraggingRef.current || !touchStartRef.current) {
+          return;
+        }
+
+        // cancelable일 때만 preventDefault 호출 (스크롤이 이미 시작된 경우 방지)
+        if (e.cancelable) {
+          e.preventDefault(); // 스크롤 방지
+        }
+
+        // 실제로 패닝이 발생했음을 표시
+        if (!hasPannedRef.current) {
+          hasPannedRef.current = true;
+          setHasPanned(true);
+        }
+
+        const touch = e.touches[0];
+        const newOffset = {
+          x: touch.clientX - touchStartRef.current.x,
+          y: touch.clientY - touchStartRef.current.y,
+        };
+
+        offsetRef.current = newOffset;
+
+        if (canvasContainerRef.current) {
+          canvasContainerRef.current.style.transform =
+            `translate(${newOffset.x}px, ${newOffset.y}px) scale(${scale})`;
+        }
+
+        const gridBackgrounds = document.querySelectorAll('.grid-background');
+        gridBackgrounds.forEach((grid) => {
+          (grid as HTMLElement).style.transform = `translate(${newOffset.x}px, ${newOffset.y}px)`;
+        });
+      };
+
+      const handleWindowTouchEnd = () => {
+        // 요소 드래그나 리사이즈 중이면 무시
+        const draggedRef = getRef(getDraggedElementRef, draggedElementRef);
+        const resizingRef = getRef(getResizingElementRef, resizingElementRef);
+        if (draggedRef?.current || resizingRef?.current) {
+          return;
+        }
+
+        const finalOffset = { ...offsetRef.current };
+        const didPan = hasPannedRef.current;
+
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        touchStartRef.current = null;
+
+        setOffset(finalOffset);
+
+        if (hasPannedRef.current) {
+          setTimeout(() => {
+            hasPannedRef.current = false;
+            setHasPanned(false);
+          }, 0);
+        } else {
+          hasPannedRef.current = false;
+          setHasPanned(false);
+        }
+
+        if (touchMoveHandlerRef.current) {
+          window.removeEventListener('touchmove', touchMoveHandlerRef.current);
+          touchMoveHandlerRef.current = null;
+        }
+        if (touchEndHandlerRef.current) {
+          window.removeEventListener('touchend', touchEndHandlerRef.current);
+          touchEndHandlerRef.current = null;
+        }
+      };
+
+      touchMoveHandlerRef.current = handleWindowTouchMove;
+      touchEndHandlerRef.current = handleWindowTouchEnd;
+
+      window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+      window.addEventListener('touchend', handleWindowTouchEnd);
+    }
+  }, [canvasRef, scale, canvasContainerRef, getDraggedElementRef, getResizingElementRef, draggedElementRef, resizingElementRef]);
+
   // 캔버스 드래그 (패닝) - 일반 드래그 또는 미들버튼
   // 리얼타임 협업 최적화: 드래그 중에는 직접 DOM 조작, 종료 시에만 상태 업데이트
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // 터치 이벤트가 최근에 발생했으면 마우스 이벤트 무시 (터치스크린 PC 대응)
+    if (isTouchDeviceRef.current) {
+      return;
+    }
     // 협업 위젯 클릭은 무시 (위젯 드래그와 충돌 방지)
     const target = e.target as HTMLElement;
     if (target.closest('[data-collaboration-widget]')) {
@@ -269,6 +453,7 @@ export const useCanvasPanning = ({
     isDragging,
     offsetRef,
     handleMouseDown,
+    handleTouchStart,
     hasPanned, // 상태로 반환하여 최신 값 보장
   };
 };

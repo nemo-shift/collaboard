@@ -14,7 +14,7 @@ export async function generateMetadata({
     
     if (!board) {
       return {
-        title: '보드 - CollaBoard',
+        title: 'CollaBoard',
         description: '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
       };
     }
@@ -46,7 +46,7 @@ export async function generateMetadata({
     };
   } catch {
     return {
-      title: '보드 - CollaBoard',
+      title: 'CollaBoard',
       description: '아이디어를 실시간으로 공유하고 함께 발전시키는 미니멀리스트 온라인 화이트보드',
     };
   }

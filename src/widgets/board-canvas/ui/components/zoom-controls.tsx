@@ -53,7 +53,7 @@ export const ZoomControls = ({ scale, onScaleChange }: ZoomControlsProps) => {
   const currentZoomPercent = Math.round(scale * 100);
 
   return (
-    <div className={`absolute bottom-4 right-4 flex flex-col gap-2 ${classes.bg} ${classes.border} rounded-lg shadow-lg p-2`}>
+    <div className={`absolute bottom-16 sm:bottom-4 right-4 flex flex-col gap-2 ${classes.bg} ${classes.border} rounded-lg shadow-lg p-2`}>
       <Tooltip content="줌인">
         <button
           onClick={handleZoomIn}

@@ -3,6 +3,22 @@
 /* Tailwind CSS v4 다크모드 활성화 */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* 애니메이션 */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
+}
+
 /* ============================================
    CollaBoard Design Tokens - CSS Variables
    ============================================ */

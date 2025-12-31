@@ -110,7 +110,7 @@ export const useElementInteraction = ({
     };
   }, [selectedElement, onElementZIndexChange, handleBringForward, handleSendBackward]);
 
-  // 요소 드래그 시작 핸들러 (공통 로직)
+  // 요소 드래그 시작 핸들러 (공통 로직) - 마우스
   const handleElementDragStart = useCallback((e: React.MouseEvent, elementId: string, elementPosition: { x: number; y: number }) => {
     e.stopPropagation();
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -120,6 +120,29 @@ export const useElementInteraction = ({
       setElementDragStart({
         x: mouseX - elementPosition.x,
         y: mouseY - elementPosition.y,
+      });
+      setDraggedElement(elementId);
+      lastElementPositionRef.current = null;
+    }
+  }, [scale, canvasRef, offsetRef]);
+
+  // 요소 드래그 시작 핸들러 (공통 로직) - 터치
+  const handleElementTouchStart = useCallback((e: React.TouchEvent, elementId: string, elementPosition: { x: number; y: number }) => {
+    // 모바일에서는 요소 드래그 비활성화 (패닝만 가능)
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      return;
+    }
+    
+    if (e.touches.length !== 1) return; // 단일 터치만 처리
+    e.stopPropagation();
+    const touch = e.touches[0];
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect && offsetRef.current) {
+      const touchX = (touch.clientX - rect.left - offsetRef.current.x) / scale;
+      const touchY = (touch.clientY - rect.top - offsetRef.current.y) / scale;
+      setElementDragStart({
+        x: touchX - elementPosition.x,
+        y: touchY - elementPosition.y,
       });
       setDraggedElement(elementId);
       lastElementPositionRef.current = null;
@@ -155,6 +178,40 @@ export const useElementInteraction = ({
       setSelectedElement(elementId);
     }
   }, [selectedElement, editingElement, setEditingElement, setEditContent]);
+
+  // 요소 드래그/리사이즈를 위한 터치 이동 핸들러
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return; // 단일 터치만 처리
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-collaboration-widget]')) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    if (draggedElement && elementDragStart && offsetRef.current) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const touchX = (touch.clientX - rect.left - offsetRef.current.x) / scale;
+        const touchY = (touch.clientY - rect.top - offsetRef.current.y) / scale;
+        const newX = touchX - elementDragStart.x;
+        const newY = touchY - elementDragStart.y;
+        const newPosition = { x: newX, y: newY };
+        lastElementPositionRef.current = { elementId: draggedElement, position: newPosition };
+        onElementMove(draggedElement, newPosition, true);
+      }
+    } else if (resizingElement && resizeStart && offsetRef.current) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const touchX = (touch.clientX - rect.left - offsetRef.current.x) / scale;
+        const touchY = (touch.clientY - rect.top - offsetRef.current.y) / scale;
+        const deltaX = touchX - resizeStart.x;
+        const deltaY = touchY - resizeStart.y;
+        const newWidth = Math.max(100, resizeStart.width + deltaX);
+        const newHeight = Math.max(80, resizeStart.height + deltaY);
+        onElementResize(resizingElement, { width: newWidth, height: newHeight });
+      }
+    }
+  }, [scale, draggedElement, elementDragStart, resizingElement, resizeStart, onElementMove, onElementResize, canvasRef, offsetRef]);
 
   // 요소 드래그/리사이즈를 위한 마우스 이동 핸들러
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -316,9 +373,11 @@ export const useElementInteraction = ({
     resizingElementRef,
     deleteConfirm,
     handleElementDragStart,
+    handleElementTouchStart,
     handleResizeStart,
     handleElementSelect,
     handleMouseMove,
+    handleTouchMove,
     handleMouseUp,
     handleBringForward,
     handleSendBackward,

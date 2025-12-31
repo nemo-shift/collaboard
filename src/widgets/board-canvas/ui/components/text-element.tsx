@@ -22,6 +22,7 @@ interface TextElementProps {
   onDragStart: (e: React.MouseEvent) => void;
   contentEditableRef: React.RefObject<HTMLDivElement | null>;
   onDoubleClick?: (e: React.MouseEvent) => void;
+  onDoubleTap?: (e: React.TouchEvent, elementId: string) => void;
   onSelect?: (elementId: string) => void;
   onBringForward?: () => void;
   onSendBackward?: () => void;
@@ -46,6 +47,7 @@ const TextElementComponent = ({
   onDragStart,
   contentEditableRef,
   onDoubleClick,
+  onDoubleTap,
   onSelect,
   onBringForward,
   onSendBackward,
@@ -358,6 +360,22 @@ const TextElementComponent = ({
           }
         }
       }}
+      onTouchStart={(e) => {
+        // 모바일에서는 요소 드래그 비활성화 (패닝만 가능)
+        if (typeof window !== 'undefined' && window.innerWidth < 640) {
+          return;
+        }
+        
+        // 편집 모드가 아니고, 포맷팅된 텍스트 내부 요소가 아닐 때만 드래그 시작
+        if (!isEditing && e.touches.length === 1) {
+          const target = e.target as HTMLElement;
+          if (!target.closest('[contenteditable="true"]') && 
+              !target.closest('[data-text-toolbar]')) {
+            e.stopPropagation();
+            // 터치 이벤트는 board-canvas에서 처리
+          }
+        }
+      }}
     >
       {isEditing ? (
         <div className="relative" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '100%' }}>
@@ -493,6 +511,14 @@ const TextElementComponent = ({
             e.stopPropagation();
             onSelect?.(element.id);
             onDoubleClick?.(e);
+          }}
+          onTouchEnd={(e) => {
+            // 더블탭 처리
+            if (e.touches.length === 0) {
+              e.stopPropagation();
+              onSelect?.(element.id);
+              onDoubleTap?.(e, element.id);
+            }
           }}
         >
           {/* pointer-events: none을 적용하여 내부 포맷팅 태그가 클릭을 가로채지 않도록 함 */}

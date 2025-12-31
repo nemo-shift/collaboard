@@ -55,7 +55,10 @@ export const HeroSection = ({ isAuthenticated = false }: HeroSectionProps) => {
         {/* Left: Text Content */}
         <div className="text-center lg:text-left">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[var(--color-text-strong)] mb-6 leading-tight tracking-tight">
-            <span className="whitespace-nowrap">톡 쏘는 실시간 협업 보드</span>
+            <span className="whitespace-nowrap">
+              <span className="sm:hidden">톡 쏘는<br />실시간 협업 보드</span>
+              <span className="hidden sm:inline">톡 쏘는 실시간 협업 보드</span>
+            </span>
             <br />
             <span className="text-[var(--color-primary-main)] dark:text-[var(--color-accent-lime-main)] whitespace-nowrap">
               Together, ideas fizz.
